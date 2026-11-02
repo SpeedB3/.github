@@ -1,0 +1,134 @@
+# Reusable CI for a Python project managed with uv: lock check, ruff, pyright, pytest.
+# Optionally starts PostgreSQL and creates the databases the tests need.
+#
+#   jobs:
+#     python:
+#       uses: SpeedB3/.github/.github/workflows/python-uv.yml@v1
+#       with:
+#         working-directory: backend
+#         postgres-version: "18"
+#         postgres-databases: kb kb_test
+#         env: |
+#           TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/kb_test
+
+name: Python (uv)
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Folder that holds pyproject.toml and uv.lock.
+        type: string
+        default: "."
+      python-version:
+        description: Python version; empty uses the project's requires-python / .python-version.
+        type: string
+        default: ""
+      format-check:
+        description: Run `ruff format --check`.
+        type: boolean
+        default: true
+      pyright:
+        description: Run pyright (it must be a dev dependency).
+        type: boolean
+        default: true
+      pytest-args:
+        description: Extra arguments for pytest, e.g. "-n auto".
+        type: string
+        default: "-q"
+      postgres-version:
+        description: Start a PostgreSQL service of this major version; empty for none.
+        type: string
+        default: ""
+      postgres-databases:
+        description: Space-separated databases to create (user postgres, password postgres, localhost:5432).
+        type: string
+        default: "test"
+      env:
+        description: KEY=VALUE lines added to the environment of every later step.
+        type: string
+        default: ""
+      extra-commands:
+        description: Shell commands run after the tests (e.g. generated-file checks).
+        type: string
+        default: ""
+      timeout-minutes:
+        type: number
+        default: 20
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    services:
+      postgres:
+        # An empty image skips the service.
+        image: ${{ inputs.postgres-version != '' && format('postgres:{0}', inputs.postgres-version) || '' }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          working-directory: ${{ inputs.working-directory }}
+          python-version: ${{ inputs.python-version }}
+
+      - name: Set environment
+        if: inputs.env != ''
+        env:
+          EXTRA_ENV: ${{ inputs.env }}
+        run: printf '%s\n' "$EXTRA_ENV" >> "$GITHUB_ENV"
+
+      - name: Create databases
+        if: inputs.postgres-version != ''
+        env:
+          PGPASSWORD: postgres
+          DATABASES: ${{ inputs.postgres-databases }}
+        run: |
+          for db in $DATABASES; do
+            psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$db\""
+          done
+
+      - name: Install (fails if uv.lock is out of date)
+        run: uv sync --locked
+
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github .
+
+      - name: Ruff format
+        if: inputs.format-check
+        run: uv run ruff format --check .
+
+      - name: Pyright
+        if: inputs.pyright
+        run: uv run pyright
+
+      - name: Pytest
+        env:
+          PYTEST_ARGS: ${{ inputs.pytest-args }}
+        # PYTEST_ARGS is split into words on purpose.
+        run: uv run pytest $PYTEST_ARGS
+
+      - name: Extra checks
+        if: inputs.extra-commands != ''
+        env:
+          EXTRA_COMMANDS: ${{ inputs.extra-commands }}
+        run: bash -euo pipefail -c "$EXTRA_COMMANDS"

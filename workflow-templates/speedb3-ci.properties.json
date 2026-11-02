@@ -1,0 +1,6 @@
+{
+  "name": "SpeedB3 CI",
+  "description": "The shared SpeedB3 pipeline: Python (uv, ruff, pyright, pytest, optional PostgreSQL), npm frontend, workflow lint.",
+  "iconName": "octicon check-circle",
+  "categories": ["Python", "TypeScript"]
+}

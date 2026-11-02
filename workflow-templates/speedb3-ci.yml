@@ -1,0 +1,35 @@
+# CI from the shared SpeedB3 workflows (SpeedB3/.github, docs in CI.md there).
+# Keep the jobs your repository needs and delete the rest.
+
+name: CI
+
+on:
+  push:
+    branches: [$default-branch]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  python:
+    uses: SpeedB3/.github/.github/workflows/python-uv.yml@v1
+    # with:
+    #   working-directory: backend
+    #   postgres-version: "18"
+    #   postgres-databases: app_test
+    #   env: |
+    #     TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/app_test
+
+  frontend:
+    uses: SpeedB3/.github/.github/workflows/node.yml@v1
+    with:
+      working-directory: frontend
+      scripts: lint typecheck test build
+
+  workflows:
+    uses: SpeedB3/.github/.github/workflows/actionlint.yml@v1
