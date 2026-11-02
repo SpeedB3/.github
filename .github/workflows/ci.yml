@@ -1,4 +1,6 @@
-# CI of this repository: lint the shared workflows themselves.
+# CI of this repository: every shared workflow runs against its fixture in tests/, one job per
+# language, from this commit (local `./` paths, not @v1). A change here must keep them all green
+# before `v1` moves.
 
 name: CI
 
@@ -11,9 +13,52 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   workflows:
     uses: ./.github/workflows/actionlint.yml
+
+  python:
+    uses: ./.github/workflows/python-uv.yml
+    with:
+      working-directory: tests/python
+      env: |
+        SELFTEST_MARKER=set-by-caller
+
+  python-postgres:
+    uses: ./.github/workflows/python-uv.yml
+    with:
+      working-directory: tests/python
+      postgres-version: "18"
+      postgres-databases: selftest_db other_db
+      env: |
+        SELFTEST_MARKER=set-by-caller
+        TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/selftest_db
+      pytest-args: -q -rs
+      extra-commands: |
+        psql "$TEST_DATABASE_URL" -tAc 'select 1' | grep -qx 1
+        psql postgresql://postgres:postgres@localhost:5432/other_db -tAc 'select 1' | grep -qx 1
+
+  node:
+    uses: ./.github/workflows/node.yml
+    with:
+      working-directory: tests/node
+
+  container:
+    # container.yml asks for packages: write; with publish: false nothing is pushed.
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/container.yml
+    with:
+      image: ci-selftest
+      context: tests/container
+      publish: false
+
+  scripts:
+    uses: ./.github/workflows/scripts.yml
+    with:
+      exclude: tests/scripts/excluded/*
+      python-tests: tests/scripts/selftest.py

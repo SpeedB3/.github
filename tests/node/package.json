@@ -1,0 +1,13 @@
+{
+  "name": "ci-selftest-node",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Fixture for the node.yml self-test; no dependencies, so it needs no network.",
+  "type": "module",
+  "scripts": {
+    "lint": "node --check src/index.js && node --check scripts/build.js",
+    "typecheck": "node -e \"import('./src/index.js').then(m => { if (typeof m.add !== 'function') process.exit(1) })\"",
+    "test": "node --test",
+    "build": "node scripts/build.js"
+  }
+}

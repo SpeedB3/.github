@@ -3,6 +3,8 @@
 #   jobs:
 #     workflows:
 #       uses: SpeedB3/.github/.github/workflows/actionlint.yml@v1
+#
+# The status check is "<caller job> / actionlint", e.g. "workflows / actionlint".
 
 name: Lint workflows
 

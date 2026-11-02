@@ -1,5 +1,6 @@
 # CI from the shared SpeedB3 workflows (SpeedB3/.github, docs in CI.md there).
-# Keep the jobs your repository needs and delete the rest.
+# Keep the jobs your repository needs and delete the rest. Then add .github/CODEOWNERS and the
+# repository's ruleset (CI.md, "Merging into main").
 
 name: CI
 
@@ -12,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -30,6 +31,9 @@ jobs:
     with:
       working-directory: frontend
       scripts: lint typecheck test build
+
+  scripts:
+    uses: SpeedB3/.github/.github/workflows/scripts.yml@v1
 
   workflows:
     uses: SpeedB3/.github/.github/workflows/actionlint.yml@v1

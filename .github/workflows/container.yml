@@ -1,6 +1,7 @@
-# Reusable CD: builds a container image and publishes it to GitHub Container Registry.
-# Pull requests only build it. Pushes to the default branch publish :main, :sha-<short> and
-# :latest; tags v1.2.3 publish :1.2.3 and :1.2. The caller must grant `packages: write`.
+# Reusable CD: lints a Dockerfile with hadolint, builds the image and publishes it to GitHub
+# Container Registry. Pull requests only build it. Pushes to the default branch publish :main,
+# :sha-<short> and :latest; tags v1.2.3 publish :1.2.3 and :1.2. The caller must grant
+# `packages: write`.
 #
 #   jobs:
 #     image:
@@ -12,6 +13,8 @@
 #       with:
 #         image: genaifinops-backend
 #         context: backend
+#
+# The status checks are "<caller job> / dockerfile" and "<caller job> / image".
 
 name: Container image
 
@@ -33,6 +36,10 @@ on:
       platforms:
         type: string
         default: linux/amd64
+      publish:
+        description: Publish on the default branch and v* tags; false only builds.
+        type: boolean
+        default: true
     outputs:
       digest:
         description: Digest of the image (empty when only built).
@@ -42,7 +49,21 @@ permissions:
   contents: read
 
 jobs:
+  dockerfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: ${{ inputs.file != '' && inputs.file || format('{0}/Dockerfile', inputs.context) }}
+          failure-threshold: warning
+
   image:
+    needs: [dockerfile]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -51,7 +72,7 @@ jobs:
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     env:
-      PUSH: ${{ github.event_name == 'push' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v')) }}
+      PUSH: ${{ inputs.publish && github.event_name == 'push' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v')) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -85,6 +106,8 @@ jobs:
           file: ${{ inputs.file }}
           platforms: ${{ inputs.platforms }}
           push: ${{ env.PUSH == 'true' }}
+          sbom: ${{ env.PUSH == 'true' }}
+          provenance: ${{ env.PUSH == 'true' && 'mode=max' || 'false' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ inputs.image }}

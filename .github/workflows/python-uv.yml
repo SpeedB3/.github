@@ -2,7 +2,7 @@
 # Optionally starts PostgreSQL and creates the databases the tests need.
 #
 #   jobs:
-#     python:
+#     backend:
 #       uses: SpeedB3/.github/.github/workflows/python-uv.yml@v1
 #       with:
 #         working-directory: backend
@@ -10,6 +10,8 @@
 #         postgres-databases: kb kb_test
 #         env: |
 #           TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/kb_test
+#
+# The status check is "<caller job> / python", e.g. "backend / python".
 
 name: Python (uv)
 
@@ -21,7 +23,7 @@ on:
         type: string
         default: "."
       python-version:
-        description: Python version; empty uses the project's requires-python / .python-version.
+        description: Python version; empty uses the project's .python-version or requires-python.
         type: string
         default: ""
       format-check:
@@ -33,7 +35,7 @@ on:
         type: boolean
         default: true
       pytest-args:
-        description: Extra arguments for pytest, e.g. "-n auto".
+        description: Extra arguments for pytest, split on spaces, e.g. "-n auto".
         type: string
         default: "-q"
       postgres-version:
@@ -45,11 +47,11 @@ on:
         type: string
         default: "test"
       env:
-        description: KEY=VALUE lines added to the environment of every later step.
+        description: KEY=VALUE lines set for every step after the install.
         type: string
         default: ""
       extra-commands:
-        description: Shell commands run after the tests (e.g. generated-file checks).
+        description: Shell commands run after the tests (e.g. generated-file checks); stops at the first failure.
         type: string
         default: ""
       timeout-minutes:
@@ -91,6 +93,9 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
           python-version: ${{ inputs.python-version }}
 
+      - name: Install (fails if uv.lock is out of date)
+        run: uv sync --locked
+
       - name: Set environment
         if: inputs.env != ''
         env:
@@ -103,12 +108,10 @@ jobs:
           PGPASSWORD: postgres
           DATABASES: ${{ inputs.postgres-databases }}
         run: |
-          for db in $DATABASES; do
+          read -ra dbs <<< "$DATABASES"
+          for db in "${dbs[@]}"; do
             psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$db\""
           done
-
-      - name: Install (fails if uv.lock is out of date)
-        run: uv sync --locked
 
       - name: Ruff lint
         run: uv run ruff check --output-format=github .
@@ -124,8 +127,9 @@ jobs:
       - name: Pytest
         env:
           PYTEST_ARGS: ${{ inputs.pytest-args }}
-        # PYTEST_ARGS is split into words on purpose.
-        run: uv run pytest $PYTEST_ARGS
+        run: |
+          read -ra args <<< "$PYTEST_ARGS"
+          uv run pytest "${args[@]}"
 
       - name: Extra checks
         if: inputs.extra-commands != ''

@@ -1,0 +1,4 @@
+# Every pull request into main needs an approval from one of these project members
+# (ruleset "main" in SpeedB3/.github/rulesets). Each must have write access to this repository.
+# Keep at least two, so a code owner can get their own pull request approved.
+* @BartolomeoAimo @BobEncees

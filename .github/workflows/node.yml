@@ -1,4 +1,5 @@
-# Reusable CI for an npm project: `npm ci`, then the package.json scripts you list.
+# Reusable CI for an npm project: `npm ci`, an audit of the runtime dependencies, then the
+# package.json scripts you list.
 #
 #   jobs:
 #     frontend:
@@ -6,6 +7,8 @@
 #       with:
 #         working-directory: frontend
 #         scripts: lint typecheck test build
+#
+# The status check is "<caller job> / node", e.g. "frontend / node".
 
 name: Node (npm)
 
@@ -23,6 +26,10 @@ on:
         description: Space-separated npm scripts to run, in order.
         type: string
         default: "lint typecheck test build"
+      audit-level:
+        description: Fail on runtime-dependency advisories at this level or above (low, moderate, high, critical); empty skips the audit.
+        type: string
+        default: high
       timeout-minutes:
         type: number
         default: 15
@@ -48,13 +55,21 @@ jobs:
           cache: npm
           cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
 
-      - run: npm ci
+      - name: Install (fails if package-lock.json is out of date)
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit runtime dependencies
+        if: inputs.audit-level != ''
+        env:
+          AUDIT_LEVEL: ${{ inputs.audit-level }}
+        run: npm audit --omit=dev --audit-level="$AUDIT_LEVEL"
 
       - name: Scripts
         env:
           SCRIPTS: ${{ inputs.scripts }}
         run: |
-          for script in $SCRIPTS; do
+          read -ra scripts <<< "$SCRIPTS"
+          for script in "${scripts[@]}"; do
             echo "::group::npm run $script"
             npm run "$script"
             echo "::endgroup::"

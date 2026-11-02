@@ -1,0 +1,123 @@
+# Reusable CI for loose scripts that are not part of a uv or npm project (skills, tooling).
+# One job per language; a job with no files of its language passes without checking anything.
+#   python:     py_compile, ruff (bug rules only by default), then the self-tests you list
+#   shell:      shellcheck
+#   powershell: PSScriptAnalyzer (errors)
+#
+#   jobs:
+#     scripts:
+#       uses: SpeedB3/.github/.github/workflows/scripts.yml@v1
+#       with:
+#         exclude: "*/evals/*"
+#         python-tests: tech/skills/custom/deep-review/scripts/guard_selftest.py
+#
+# The status checks are "<caller job> / python", "<caller job> / shell", "<caller job> / powershell".
+
+name: Scripts
+
+on:
+  workflow_call:
+    inputs:
+      exclude:
+        description: Space-separated path globs to skip (find -path syntax), e.g. "*/evals/* */templates/*".
+        type: string
+        default: ""
+      ruff-select:
+        description: Ruff rules for Python scripts.
+        type: string
+        default: "E9,F"
+      python-version:
+        type: string
+        default: "3.12"
+      python-tests:
+        description: Space-separated Python scripts that exit non-zero on failure.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  EXCLUDE: ${{ inputs.exclude }}
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: List files
+        id: files
+        run: |
+          read -ra globs <<< "$EXCLUDE"
+          args=()
+          for g in "${globs[@]}"; do args+=(-not -path "./$g"); done
+          find . -name '*.py' -not -path './.git/*' "${args[@]}" -print0 > "$RUNNER_TEMP/files"
+          echo "count=$(tr -cd '\0' < "$RUNNER_TEMP/files" | wc -c)" >> "$GITHUB_OUTPUT"
+
+      - name: Compile
+        if: steps.files.outputs.count != '0'
+        run: xargs -0 uv run --no-project python -B -m py_compile < "$RUNNER_TEMP/files"
+
+      - name: Ruff
+        if: steps.files.outputs.count != '0'
+        env:
+          RUFF_SELECT: ${{ inputs.ruff-select }}
+        run: xargs -0 uvx ruff@0.17.3 check --isolated --output-format=github --select "$RUFF_SELECT" < "$RUNNER_TEMP/files"
+
+      - name: Self-tests
+        if: inputs.python-tests != ''
+        env:
+          TESTS: ${{ inputs.python-tests }}
+        run: |
+          read -ra tests <<< "$TESTS"
+          for t in "${tests[@]}"; do
+            echo "::group::$t"
+            uv run --no-project python -B "$t"
+            echo "::endgroup::"
+          done
+
+  shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: shellcheck
+        run: |
+          read -ra globs <<< "$EXCLUDE"
+          args=()
+          for g in "${globs[@]}"; do args+=(-not -path "./$g"); done
+          find . \( -name '*.sh' -o -name '*.bash' \) -not -path './.git/*' "${args[@]}" -print0 \
+            | xargs -0 --no-run-if-empty shellcheck --format=gcc
+
+  powershell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser }
+          $exclude = @($env:EXCLUDE -split ' ' | Where-Object { $_ })
+          $files = Get-ChildItem -Recurse -File -Include *.ps1, *.psm1 | Where-Object {
+            $rel = './' + [IO.Path]::GetRelativePath($PWD, $_.FullName).Replace('\', '/')
+            -not ($exclude | Where-Object { $rel -like "./$_" })
+          }
+          if (-not $files) { 'No PowerShell files.'; exit 0 }
+          $found = $files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Error }
+          $found | Format-Table -AutoSize | Out-String -Width 200
+          if ($found) { exit 1 }
