@@ -1,7 +1,7 @@
 # Reusable CI for scripts (skills, tooling): checks every .py, .sh, .bash, .ps1 and .psm1 file in the
-# repository outside .git. List folders that belong to a uv or npm project (python-uv.yml and node.yml
-# check those with their own config) in `exclude`, because Ruff runs here with --isolated and ignores
-# the project's ruff config.
+# repository outside .git. List the Python files of a uv project in `exclude` as a glob such as
+# `backend/*.py` (find -path `*` also matches `/`, so it covers every depth), because Ruff runs here
+# with --isolated and ignores the project's ruff config.
 # One job per language; a job with no files of its language passes without checking anything.
 #   python:     py_compile, ruff (bug rules only by default), then the self-tests you list
 #   shell:      shellcheck
@@ -22,7 +22,7 @@ on:
   workflow_call:
     inputs:
       exclude:
-        description: Whitespace-separated (spaces or newlines) folders or path globs to skip, relative to the repository root (find -path syntax), e.g. "backend */evals/*".
+        description: Whitespace-separated (spaces or newlines) folders or path globs to skip, relative to the repository root (find -path syntax), e.g. "backend/*.py */evals/*".
         type: string
         default: ""
       ruff-select:

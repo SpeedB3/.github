@@ -1,6 +1,7 @@
 # Reusable CI for a Python project managed with uv: lock check, ruff, pyright, pytest.
 # Optionally starts PostgreSQL and creates the databases the tests need.
-# The project must have ruff and pytest, and unless `pyright: false` also pyright, in its dev dependency group.
+# The project must have ruff and pytest, and unless `pyright: false` also pyright, in its dev
+# dependency group.
 #
 #   jobs:
 #     backend:
@@ -36,7 +37,7 @@ on:
         type: boolean
         default: true
       pytest-args:
-        description: Extra arguments for pytest, split on whitespace (spaces or newlines), e.g. "-n auto".
+        description: Whitespace-separated (spaces or newlines) pytest arguments; they replace the default "-q", e.g. "-q -n auto".
         type: string
         default: "-q"
       postgres-version:

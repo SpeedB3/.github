@@ -62,7 +62,7 @@ jobs:
   scripts:
     uses: ./.github/workflows/scripts.yml
     with:
-      exclude: tests/scripts/excluded/* tests/python/*
+      exclude: tests/scripts/excluded/* tests/python/*.py
       python-tests: tests/scripts/selftest.py
 
   # A repository with no loose scripts of any language must pass, not fail.
