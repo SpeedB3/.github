@@ -1,4 +1,4 @@
-# Reusable CI for a Python project managed with uv: lock check, ruff, pyright, pytest.
+# Reusable CI for a Python project managed with uv: lock check, dependency audit, ruff, pyright, pytest.
 # Optionally starts PostgreSQL and creates the databases the tests need.
 # The project must have ruff and pytest, and unless `pyright: false` also pyright, in its dev
 # dependency group.
@@ -34,6 +34,10 @@ on:
         default: true
       pyright:
         description: Run pyright (it must be a dev dependency).
+        type: boolean
+        default: true
+      audit:
+        description: Fail on known vulnerabilities (pip-audit) in the runtime dependencies of uv.lock, like node.yml's npm audit.
         type: boolean
         default: true
       pytest-args:
@@ -98,6 +102,17 @@ jobs:
 
       - name: Install (fails if uv.lock is out of date)
         run: uv sync --locked
+
+      - name: Audit runtime dependencies
+        if: inputs.audit
+        run: |
+          uv export --locked --format requirements-txt --no-dev --no-emit-project --no-emit-workspace \
+            --quiet -o "$RUNNER_TEMP/requirements.txt"
+          if ! grep -q '==' "$RUNNER_TEMP/requirements.txt"; then
+            echo "No runtime dependencies to audit."
+            exit 0
+          fi
+          uvx pip-audit@2.10.1 -r "$RUNNER_TEMP/requirements.txt" --disable-pip --progress-spinner off
 
       - name: Set environment
         if: inputs.env != ''

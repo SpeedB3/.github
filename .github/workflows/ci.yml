@@ -38,6 +38,7 @@ jobs:
         TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/selftest_db
       pytest-args: -q -rs
       format-check: false
+      audit: false
       pyright: false
       extra-commands: |
         psql "$TEST_DATABASE_URL" -tAc 'select 1' | grep -qx 1

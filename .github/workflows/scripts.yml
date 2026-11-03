@@ -113,9 +113,24 @@ jobs:
           tr '\0' '\n' < "$RUNNER_TEMP/files"
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
+      # Pinned, not the runner image's copy, so an image update cannot change the gate.
+      - name: Install shellcheck
+        if: steps.files.outputs.count != '0'
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          SHELLCHECK_SHA256: b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6
+        run: |
+          tarball="shellcheck-$SHELLCHECK_VERSION.linux.x86_64.tar.gz"
+          curl -sSfL -o "$RUNNER_TEMP/$tarball" "https://github.com/koalaman/shellcheck/releases/download/$SHELLCHECK_VERSION/$tarball"
+          echo "$SHELLCHECK_SHA256  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/shellcheck-$SHELLCHECK_VERSION" >> "$GITHUB_PATH"
+
       - name: shellcheck
         if: steps.files.outputs.count != '0'
-        run: xargs -0 shellcheck --format=gcc < "$RUNNER_TEMP/files"
+        run: |
+          shellcheck --version
+          xargs -0 shellcheck --format=gcc < "$RUNNER_TEMP/files"
 
   powershell:
     runs-on: ubuntu-latest
@@ -140,8 +155,15 @@ jobs:
       - name: PSScriptAnalyzer
         if: steps.files.outputs.count != '0'
         shell: pwsh
+        env:
+          PSSA_VERSION: 1.25.0
         run: |
-          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser }
+          # Pinned, not whatever the runner image or PSGallery has today.
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer | Where-Object Version -eq $env:PSSA_VERSION)) {
+            Install-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION -Force -Scope CurrentUser
+          }
+          Import-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION
+          "PSScriptAnalyzer $((Get-Module PSScriptAnalyzer).Version)"
           $files = @([IO.File]::ReadAllText("$env:RUNNER_TEMP/files").Split([char]0, [StringSplitOptions]::RemoveEmptyEntries))
           $found = $files | Invoke-ScriptAnalyzer -Severity Error, ParseError
           $found | Format-Table -AutoSize | Out-String -Width 200
