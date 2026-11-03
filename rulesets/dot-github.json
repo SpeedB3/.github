@@ -74,6 +74,18 @@
           {
             "context": "scripts / powershell",
             "integration_id": 15368
+          },
+          {
+            "context": "scripts-none / python",
+            "integration_id": 15368
+          },
+          {
+            "context": "scripts-none / shell",
+            "integration_id": 15368
+          },
+          {
+            "context": "scripts-none / powershell",
+            "integration_id": 15368
           }
         ]
       }

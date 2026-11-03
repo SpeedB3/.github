@@ -28,6 +28,7 @@ workflow from the current commit against a fixture project in [`tests/`](tests):
 | `node` | `tests/node` (no dependencies) | `npm ci`, audit, the four scripts |
 | `container` | `tests/container` | hadolint and a build; `publish: false`, so nothing is pushed |
 | `scripts` | `tests/scripts` | all three languages, the self-test, and `exclude` (it skips a deliberately broken file) |
+| `scripts-none` | nothing (everything excluded) | a repository without loose scripts passes |
 | `workflows` | this repository | actionlint over all of the above |
 
 Move `v1` only when this CI is green on `main`.

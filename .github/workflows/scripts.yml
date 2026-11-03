@@ -52,6 +52,8 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: ${{ inputs.python-version }}
+          # Nothing to cache (no project), and saving an empty cache fails the job.
+          enable-cache: false
 
       - name: List files
         id: files
