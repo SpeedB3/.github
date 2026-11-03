@@ -4,7 +4,7 @@
 # with --isolated and ignores the project's ruff config.
 # One job per language; a job with no files of its language passes without checking anything.
 #   python:     py_compile, ruff (bug rules only by default), then the self-tests you list
-#   shell:      shellcheck
+#   shell:      shellcheck (all severities; a .shellcheckrc in the repository can relax it)
 #   powershell: PSScriptAnalyzer (errors and parse errors)
 #
 #   jobs:
@@ -26,7 +26,7 @@ on:
         type: string
         default: ""
       ruff-select:
-        description: Ruff rules for Python scripts.
+        description: Comma-separated Ruff rule codes or prefixes passed to --select, e.g. "E9,F,B".
         type: string
         default: "E9,F"
       python-version:

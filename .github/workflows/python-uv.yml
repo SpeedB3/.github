@@ -113,7 +113,7 @@ jobs:
         run: |
           read -r -d '' -a dbs <<< "$DATABASES" || true
           for db in "${dbs[@]}"; do
-            psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$db\""
+            psql -h localhost -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$db\""
           done
 
       - name: Ruff lint

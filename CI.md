@@ -10,7 +10,7 @@ its next run.
 | [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff and pytest must be dev dependencies, and pyright too unless `pyright: false`. |
 | [`node.yml`](.github/workflows/node.yml) | TypeScript / JavaScript (npm) | `npm ci`, `npm audit` of runtime dependencies (high and above), then the package.json scripts you list. |
 | [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. Pushes to the default branch (`main`) and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
-| [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck, PSScriptAnalyzer. It checks every such file in the repository, so list a uv project's Python files in `exclude` (e.g. `backend/*.py`), because Ruff runs with `--isolated` and ignores the project's config. |
+| [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck (all severities), PSScriptAnalyzer. It checks every such file in the repository, so list a uv project's Python files in `exclude` (e.g. `backend/*.py`), because Ruff runs with `--isolated` and ignores the project's config. |
 | [`actionlint.yml`](.github/workflows/actionlint.yml) | GitHub Actions YAML | actionlint, with shellcheck on `run:` blocks. |
 
 Each file's header shows how to call it, its `inputs` list every option, and it names the status checks it
@@ -19,7 +19,8 @@ reports.
 ## Tests of the pipeline
 
 Each shared workflow has its own test. The [CI](.github/workflows/ci.yml) of this repository runs every
-workflow from the current commit against a fixture project in [`tests/`](tests) (actionlint runs over this repository itself):
+workflow from the current commit against a fixture project in [`tests/`](tests) (actionlint runs over
+this repository itself):
 
 | Job | Fixture | Proves |
 |---|---|---|
