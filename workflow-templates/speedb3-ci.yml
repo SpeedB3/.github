@@ -7,6 +7,7 @@ name: CI
 on:
   push:
     branches: [$default-branch]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -34,6 +35,8 @@ jobs:
 
   scripts:
     uses: SpeedB3/.github/.github/workflows/scripts.yml@v1
+    # with:
+    #   exclude: backend/*   # uv/npm project folders; python-uv.yml and node.yml check them with their own config (CI.md)
 
   workflows:
     uses: SpeedB3/.github/.github/workflows/actionlint.yml@v1

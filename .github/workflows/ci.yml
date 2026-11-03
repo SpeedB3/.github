@@ -1,6 +1,6 @@
 # CI of this repository: every shared workflow runs, one job per scenario, against its fixture in
-# tests/ (actionlint runs over this repository itself), from this commit (local `./` paths, not @v1). A change here must keep them all green
-# before `v1` moves.
+# tests/ (actionlint runs over this repository itself), from this commit (local `./` paths, not
+# @v1). A change here must keep them all green before `v1` moves.
 
 name: CI
 
@@ -37,6 +37,8 @@ jobs:
         SELFTEST_MARKER=set-by-caller
         TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/selftest_db
       pytest-args: -q -rs
+      format-check: false
+      pyright: false
       extra-commands: |
         psql "$TEST_DATABASE_URL" -tAc 'select 1' | grep -qx 1
         psql postgresql://postgres:postgres@localhost:5432/other_db -tAc 'select 1' | grep -qx 1

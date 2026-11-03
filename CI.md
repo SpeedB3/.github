@@ -7,9 +7,9 @@ its next run.
 
 | Workflow | Language | What it does |
 |---|---|---|
-| [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff, pytest and pyright must be dev dependencies. |
+| [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff and pytest must be dev dependencies, and pyright too unless `pyright: false`. |
 | [`node.yml`](.github/workflows/node.yml) | TypeScript / JavaScript (npm) | `npm ci`, `npm audit` of runtime dependencies (high and above), then the package.json scripts you list. |
-| [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. Pushes to `main` and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
+| [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. Pushes to the default branch (`main`) and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
 | [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck, PSScriptAnalyzer. It checks every such file in the repository, so list uv or npm project folders in `exclude` (Ruff runs with `--isolated` and ignores the project's config). |
 | [`actionlint.yml`](.github/workflows/actionlint.yml) | GitHub Actions YAML | actionlint, with shellcheck on `run:` blocks. |
 
@@ -24,7 +24,7 @@ workflow from the current commit against a fixture project in [`tests/`](tests) 
 | Job | Fixture | Proves |
 |---|---|---|
 | `python` | `tests/python` | lock check, ruff, strict pyright, pytest, the `env` input |
-| `python-postgres` | `tests/python` | the PostgreSQL service, two created databases, `extra-commands` |
+| `python-postgres` | `tests/python` | the PostgreSQL service, two created databases, `extra-commands`, and that `format-check: false` and `pyright: false` skip their steps |
 | `node` | `tests/node` (no dependencies) | `npm ci`, audit, the four scripts |
 | `container` | `tests/container` | hadolint and a build; `publish: false`, so nothing is pushed |
 | `scripts` | `tests/scripts` | all three languages, the self-test, and `exclude` (it skips a deliberately broken file) |
