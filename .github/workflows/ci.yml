@@ -1,5 +1,5 @@
-# CI of this repository: every shared workflow runs against its fixture in tests/, one job per
-# language, from this commit (local `./` paths, not @v1). A change here must keep them all green
+# CI of this repository: every shared workflow runs, one job per scenario, against its fixture in
+# tests/ (actionlint runs over this repository itself), from this commit (local `./` paths, not @v1). A change here must keep them all green
 # before `v1` moves.
 
 name: CI
@@ -60,7 +60,7 @@ jobs:
   scripts:
     uses: ./.github/workflows/scripts.yml
     with:
-      exclude: tests/scripts/excluded/*
+      exclude: tests/scripts/excluded/* tests/python/*
       python-tests: tests/scripts/selftest.py
 
   # A repository with no loose scripts of any language must pass, not fail.

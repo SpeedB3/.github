@@ -1,6 +1,6 @@
 # SpeedB3
 
-This organisation holds the team's project repositories, the actual delivery work, whether for a client or for ourselves, and one shared repository, `team-vaults`, for everything reusable. Each project repo is scoped to one project and carries its own context, code, and documentation.
+This organisation holds the team's project repositories, the actual delivery work, whether for a client or for ourselves, and two shared repositories: `team-vaults` for everything reusable and `.github` for the profile and shared CI/CD. Each project repo is scoped to one project and carries its own context, code, and documentation.
 
 ## team-vaults
 
@@ -27,7 +27,7 @@ Every repository name starts with a prefix that says who the project is for:
 | `internal-` | Internal projects: tools, accelerators, and R&D we build for ourselves | `internal-GenAIFinOps` |
 | `client-` | Client projects: delivery work for a specific client engagement | `client-AcmeDataPlatform` |
 
-After the prefix, use a short descriptive name in PascalCase, without spaces or extra hyphens. `team-vaults` is the one repository without a prefix: it is shared infrastructure, not a project, and there is only one of it.
+After the prefix, use a short descriptive name in PascalCase, without spaces or extra hyphens. `team-vaults` and `.github` are the only repositories without a prefix: they are shared infrastructure, not projects (`.github` is the name GitHub requires for the organisation profile and shared workflows).
 
 ## README requirements
 

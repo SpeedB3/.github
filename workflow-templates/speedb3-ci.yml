@@ -37,3 +37,14 @@ jobs:
 
   workflows:
     uses: SpeedB3/.github/.github/workflows/actionlint.yml@v1
+
+  # Builds the Dockerfile and publishes the image to GHCR on pushes to the default branch and v* tags.
+  # image:
+  #   needs: [python]
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   uses: SpeedB3/.github/.github/workflows/container.yml@v1
+  #   with:
+  #     image: <image-name>
+  #     context: .

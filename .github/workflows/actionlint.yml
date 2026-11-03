@@ -1,4 +1,5 @@
-# Reusable check of the calling repository's workflow files with actionlint (and shellcheck).
+# Reusable check of the calling repository's workflow files with actionlint (and shellcheck),
+# including the starter workflows in workflow-templates/ when that folder exists.
 #
 #   jobs:
 #     workflows:
@@ -26,4 +27,6 @@ jobs:
       - name: actionlint
         run: |
           bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
-          ./actionlint -color
+          shopt -s nullglob
+          files=(.github/workflows/*.yml .github/workflows/*.yaml workflow-templates/*.yml workflow-templates/*.yaml)
+          ./actionlint -color "${files[@]}"

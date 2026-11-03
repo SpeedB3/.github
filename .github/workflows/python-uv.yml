@@ -1,5 +1,6 @@
 # Reusable CI for a Python project managed with uv: lock check, ruff, pyright, pytest.
 # Optionally starts PostgreSQL and creates the databases the tests need.
+# The project must have ruff and pytest, and unless `pyright: false` also pyright, in its dev dependency group.
 #
 #   jobs:
 #     backend:
@@ -35,7 +36,7 @@ on:
         type: boolean
         default: true
       pytest-args:
-        description: Extra arguments for pytest, split on spaces, e.g. "-n auto".
+        description: Extra arguments for pytest, split on whitespace (spaces or newlines), e.g. "-n auto".
         type: string
         default: "-q"
       postgres-version:
@@ -43,7 +44,7 @@ on:
         type: string
         default: ""
       postgres-databases:
-        description: Space-separated databases to create (user postgres, password postgres, localhost:5432).
+        description: Whitespace-separated (spaces or newlines) databases to create (user postgres, password postgres, localhost:5432).
         type: string
         default: "test"
       env:
@@ -55,6 +56,7 @@ on:
         type: string
         default: ""
       timeout-minutes:
+        description: Job timeout in minutes.
         type: number
         default: 20
 
@@ -108,13 +110,13 @@ jobs:
           PGPASSWORD: postgres
           DATABASES: ${{ inputs.postgres-databases }}
         run: |
-          read -ra dbs <<< "$DATABASES"
+          read -r -d '' -a dbs <<< "$DATABASES" || true
           for db in "${dbs[@]}"; do
             psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$db\""
           done
 
       - name: Ruff lint
-        run: uv run ruff check --output-format=github .
+        run: uv run ruff check --no-fix --output-format=github .
 
       - name: Ruff format
         if: inputs.format-check
@@ -128,7 +130,7 @@ jobs:
         env:
           PYTEST_ARGS: ${{ inputs.pytest-args }}
         run: |
-          read -ra args <<< "$PYTEST_ARGS"
+          read -r -d '' -a args <<< "$PYTEST_ARGS" || true
           uv run pytest "${args[@]}"
 
       - name: Extra checks

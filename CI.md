@@ -7,10 +7,10 @@ its next run.
 
 | Workflow | Language | What it does |
 |---|---|---|
-| [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. |
+| [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff, pytest and pyright must be dev dependencies. |
 | [`node.yml`](.github/workflows/node.yml) | TypeScript / JavaScript (npm) | `npm ci`, `npm audit` of runtime dependencies (high and above), then the package.json scripts you list. |
 | [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. Pushes to `main` and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
-| [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck, PSScriptAnalyzer. |
+| [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck, PSScriptAnalyzer. It checks every such file in the repository, so list uv or npm project folders in `exclude` (Ruff runs with `--isolated` and ignores the project's config). |
 | [`actionlint.yml`](.github/workflows/actionlint.yml) | GitHub Actions YAML | actionlint, with shellcheck on `run:` blocks. |
 
 Each file's header shows how to call it, its `inputs` list every option, and it names the status checks it
@@ -19,7 +19,7 @@ reports.
 ## Tests of the pipeline
 
 Each shared workflow has its own test. The [CI](.github/workflows/ci.yml) of this repository runs every
-workflow from the current commit against a fixture project in [`tests/`](tests):
+workflow from the current commit against a fixture project in [`tests/`](tests) (actionlint runs over this repository itself):
 
 | Job | Fixture | Proves |
 |---|---|---|
@@ -87,4 +87,7 @@ git tag -f v1 && git push -f origin v1
 
 A breaking change, such as a renamed input, a new required input or a renamed job (it changes the
 status-check names), gets `v2`. Repositories then move over one at a time. Third-party actions are pinned by
-commit SHA, with the version in a comment. Dependabot proposes their updates every week.
+commit SHA, with the version in a comment. Dependabot proposes their updates every week. Two tool versions
+sit in `run:` lines, outside Dependabot, and are bumped by hand: actionlint
+(`.github/workflows/actionlint.yml`, the download-script commit and `1.7.12`) and ruff for loose scripts
+(`.github/workflows/scripts.yml`, `ruff@0.17.3`).
