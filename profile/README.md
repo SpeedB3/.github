@@ -57,4 +57,4 @@ Setup instructions, documentation maps, and anything else follow after these. A 
 | [internal-GenAIFinOps](https://github.com/SpeedB3/internal-GenAIFinOps) | AI Cost Optimizer: what a client pays for AI today and what a different LLM offering would save, ranked on cost, task fit, speed and uptime. |
 | [internal-MigrationFinOps](https://github.com/SpeedB3/internal-MigrationFinOps) | `agent-migrate`: a platform for migrating AI agents between agentic platforms, mostly automatic, verified by evaluation, explicit about where a human must act. |
 | [internal-teamWorkflowAutomation](https://github.com/SpeedB3/internal-teamWorkflowAutomation) | Files Teams meeting transcripts into Notion with a Claude-written summary and opens the Linear follow-up ticket. |
-| [.github](https://github.com/SpeedB3/.github) | This profile, the README template and the organisation's shared defaults. |
+| [.github](https://github.com/SpeedB3/.github) | This profile, the README template, and the shared CI/CD and merge rules every repository uses ([CI.md](https://github.com/SpeedB3/.github/blob/main/CI.md)). |
