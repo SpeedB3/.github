@@ -60,7 +60,10 @@ jobs:
           args=()
           for g in "${globs[@]}"; do args+=(-not -path "./$g"); done
           find . -name '*.py' -not -path './.git/*' "${args[@]}" -print0 > "$RUNNER_TEMP/files"
-          echo "count=$(tr -cd '\0' < "$RUNNER_TEMP/files" | wc -c)" >> "$GITHUB_OUTPUT"
+          count=$(tr -cd '\0' < "$RUNNER_TEMP/files" | wc -c)
+          echo "Checking $count Python files:"
+          tr '\0' '\n' < "$RUNNER_TEMP/files"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
 
       - name: Compile
         if: steps.files.outputs.count != '0'
@@ -97,8 +100,10 @@ jobs:
           read -ra globs <<< "$EXCLUDE"
           args=()
           for g in "${globs[@]}"; do args+=(-not -path "./$g"); done
-          find . \( -name '*.sh' -o -name '*.bash' \) -not -path './.git/*' "${args[@]}" -print0 \
-            | xargs -0 --no-run-if-empty shellcheck --format=gcc
+          mapfile -d '' files < <(find . \( -name '*.sh' -o -name '*.bash' \) -not -path './.git/*' "${args[@]}" -print0)
+          echo "Checking ${#files[@]} shell files:"
+          printf '%s\n' "${files[@]}"
+          if [ "${#files[@]}" -gt 0 ]; then shellcheck --format=gcc "${files[@]}"; fi
 
   powershell:
     runs-on: ubuntu-latest
@@ -117,7 +122,9 @@ jobs:
             $rel = './' + [IO.Path]::GetRelativePath($PWD, $_.FullName).Replace('\', '/')
             -not ($exclude | Where-Object { $rel -like "./$_" })
           }
-          if (-not $files) { 'No PowerShell files.'; exit 0 }
+          "Checking $(@($files).Count) PowerShell files:"
+          $files | ForEach-Object { './' + [IO.Path]::GetRelativePath($PWD, $_.FullName) }
+          if (-not $files) { exit 0 }
           $found = $files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Error }
           $found | Format-Table -AutoSize | Out-String -Width 200
           if ($found) { exit 1 }
