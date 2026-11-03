@@ -44,6 +44,18 @@
             "integration_id": 15368
           },
           {
+            "context": "scripts / python",
+            "integration_id": 15368
+          },
+          {
+            "context": "scripts / shell",
+            "integration_id": 15368
+          },
+          {
+            "context": "scripts / powershell",
+            "integration_id": 15368
+          },
+          {
             "context": "workflows / actionlint",
             "integration_id": 15368
           }

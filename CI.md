@@ -41,7 +41,7 @@ From the repository on GitHub, go to **Actions → New workflow** and pick **Spe
 |---|---|
 | internal-GenAIFinOps | backend (Python + PostgreSQL 18 + OpenAPI drift check), frontend, workflows, image (`genaifinops-backend`) |
 | internal-MigrationFinOps | python (PostgreSQL 18, `-n auto`, schema and ledger checks), workbench, workflows |
-| internal-teamWorkflowAutomation | python, workflows (the poll workflows stay repo-specific) |
+| internal-teamWorkflowAutomation | python, scripts (`scripts/*.ps1`), workflows (the poll workflows stay repo-specific) |
 | team-vaults | scripts (Python, shell, PowerShell; evals and templates skipped), workflows |
 
 Then add the repository's `CODEOWNERS` and ruleset (below).
