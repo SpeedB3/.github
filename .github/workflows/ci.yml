@@ -1,6 +1,6 @@
 # CI of this repository: every shared workflow runs, one job per scenario, against its fixture in
-# tests/ (actionlint runs over this repository itself), from this commit (local `./` paths, not
-# @v1). A change here must keep them all green before `v1` moves.
+# tests/ (actionlint and gitleaks run over this repository itself), from this commit (local `./`
+# paths, not @v1). A change here must keep them all green before `v1` moves.
 
 name: CI
 
@@ -26,6 +26,9 @@ jobs:
       working-directory: tests/python
       env: |
         SELFTEST_MARKER=set-by-caller
+      # The audit step skips pip-audit when its export has no pinned line, so fail if packaging was not
+      # exported (and therefore not audited).
+      extra-commands: grep -q '^packaging==' "$RUNNER_TEMP/requirements.txt"
 
   python-postgres:
     uses: ./.github/workflows/python-uv.yml
@@ -79,6 +82,10 @@ jobs:
       - name: Every job passed
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
+          SCRIPT_COUNTS: ${{ needs.scripts.outputs.python-files }} ${{ needs.scripts.outputs.shell-files }} ${{ needs.scripts.outputs.powershell-files }}
         run: |
           echo "Job results: $RESULTS"
           case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
+          read -r -a counts <<< "$SCRIPT_COUNTS"
+          [ "${#counts[@]}" = 3 ] || { echo "scripts self-test did not report three file counts"; exit 1; }
+          for c in "${counts[@]}"; do [ "$c" != 0 ] || { echo "scripts self-test checked no files of a language"; exit 1; }; done

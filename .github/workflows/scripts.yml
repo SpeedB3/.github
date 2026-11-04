@@ -37,17 +37,43 @@ on:
         description: Whitespace-separated (spaces or newlines) Python scripts that exit non-zero on failure.
         type: string
         default: ""
+    outputs:
+      python-files:
+        description: Number of Python files the python job checked.
+        value: ${{ jobs.python.outputs.count }}
+      shell-files:
+        description: Number of shell files the shell job checked.
+        value: ${{ jobs.shell.outputs.count }}
+      powershell-files:
+        description: Number of PowerShell files the powershell job checked.
+        value: ${{ jobs.powershell.outputs.count }}
 
 permissions:
   contents: read
 
 env:
   EXCLUDE: ${{ inputs.exclude }}
+  # The List files step of all three jobs, so they select files the same way. Called as
+  # `bash -eo pipefail -c "$LIST_FILES" list-files <label> <find -name predicates>`: $0 is a name, $1
+  # the label, the rest the predicates (the script adds the parentheses). Kept here, not in a run:
+  # block, so actionlint's shellcheck does not see it.
+  LIST_FILES: |
+    label=$1; shift
+    read -r -d '' -a globs <<< "$EXCLUDE" || true
+    args=()
+    for g in "${globs[@]}"; do g=${g#./}; g=${g%/}; args+=(-not -path "./$g" -not -path "./$g/*"); done
+    find . \( "$@" \) -not -path './.git/*' "${args[@]}" -print0 > "$RUNNER_TEMP/files"
+    count=$(tr -cd '\0' < "$RUNNER_TEMP/files" | wc -c)
+    echo "Checking $count $label files:"
+    tr '\0' '\n' < "$RUNNER_TEMP/files"
+    echo "count=$count" >> "$GITHUB_OUTPUT"
 
 jobs:
   python:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      count: ${{ steps.files.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,15 +87,7 @@ jobs:
 
       - name: List files
         id: files
-        run: |
-          read -r -d '' -a globs <<< "$EXCLUDE" || true
-          args=()
-          for g in "${globs[@]}"; do g=${g#./}; g=${g%/}; args+=(-not -path "./$g" -not -path "./$g/*"); done
-          find . -name '*.py' -not -path './.git/*' "${args[@]}" -print0 > "$RUNNER_TEMP/files"
-          count=$(tr -cd '\0' < "$RUNNER_TEMP/files" | wc -c)
-          echo "Checking $count Python files:"
-          tr '\0' '\n' < "$RUNNER_TEMP/files"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
+        run: bash -eo pipefail -c "$LIST_FILES" list-files Python -name '*.py'
 
       - name: Compile
         if: steps.files.outputs.count != '0'
@@ -96,6 +114,8 @@ jobs:
   shell:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      count: ${{ steps.files.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,15 +123,7 @@ jobs:
 
       - name: List files
         id: files
-        run: |
-          read -r -d '' -a globs <<< "$EXCLUDE" || true
-          args=()
-          for g in "${globs[@]}"; do g=${g#./}; g=${g%/}; args+=(-not -path "./$g" -not -path "./$g/*"); done
-          find . \( -name '*.sh' -o -name '*.bash' \) -not -path './.git/*' "${args[@]}" -print0 > "$RUNNER_TEMP/files"
-          count=$(tr -cd '\0' < "$RUNNER_TEMP/files" | wc -c)
-          echo "Checking $count shell files:"
-          tr '\0' '\n' < "$RUNNER_TEMP/files"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
+        run: bash -eo pipefail -c "$LIST_FILES" list-files shell -name '*.sh' -o -name '*.bash'
 
       # Pinned, not the runner image's copy, so an image update cannot change the gate.
       - name: Install shellcheck
@@ -135,6 +147,8 @@ jobs:
   powershell:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      count: ${{ steps.files.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -142,15 +156,7 @@ jobs:
 
       - name: List files
         id: files
-        run: |
-          read -r -d '' -a globs <<< "$EXCLUDE" || true
-          args=()
-          for g in "${globs[@]}"; do g=${g#./}; g=${g%/}; args+=(-not -path "./$g" -not -path "./$g/*"); done
-          find . \( -name '*.ps1' -o -name '*.psm1' \) -not -path './.git/*' "${args[@]}" -print0 > "$RUNNER_TEMP/files"
-          count=$(tr -cd '\0' < "$RUNNER_TEMP/files" | wc -c)
-          echo "Checking $count PowerShell files:"
-          tr '\0' '\n' < "$RUNNER_TEMP/files"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
+        run: bash -eo pipefail -c "$LIST_FILES" list-files PowerShell -name '*.ps1' -o -name '*.psm1'
 
       - name: PSScriptAnalyzer
         if: steps.files.outputs.count != '0'

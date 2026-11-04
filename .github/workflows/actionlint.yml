@@ -25,6 +25,7 @@ jobs:
         with:
           persist-credentials: false
 
+      # actionlint is pinned (download-script commit and 1.7.12); the shellcheck it runs on run: blocks and the yq of the next step come from the runner image.
       - name: actionlint
         run: |
           bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
@@ -36,11 +37,11 @@ jobs:
       - name: ci-ok needs every job
         run: |
           status=0
-          for f in .github/workflows/*.yml .github/workflows/*.yaml workflow-templates/*.yml; do
+          for f in .github/workflows/*.yml .github/workflows/*.yaml workflow-templates/*.yml workflow-templates/*.yaml; do
             [ -f "$f" ] || continue
             [ "$(yq '.jobs | has("ci-ok")' "$f")" = "true" ] || continue
             missing=$(comm -23 <(yq '.jobs | keys | .[]' "$f" | grep -vx 'ci-ok' | sort) \
-                               <(yq '.jobs."ci-ok".needs[]' "$f" | sort))
+                               <(yq '[.jobs."ci-ok".needs] | flatten | .[]' "$f" | sort))
             if [ -n "$missing" ]; then
               echo "::error file=$f::ci-ok does not need: $(echo "$missing" | tr '\n' ' ')"
               status=1

@@ -10,7 +10,7 @@ its next run.
 | [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, pip-audit of the runtime dependencies (`audit: false` turns it off), ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff and pytest must be dev dependencies, and pyright too unless `pyright: false`. |
 | [`node.yml`](.github/workflows/node.yml) | TypeScript / JavaScript (npm) | `npm ci`, `npm audit` of runtime dependencies (high and above), then the package.json scripts you list. |
 | [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. With `publish: true` (the default), pushes to the default branch (`main`) and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
-| [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck (all severities), PSScriptAnalyzer. It checks every such file in the repository, so list a uv project's Python files in `exclude` (e.g. `backend/*.py`), because Ruff runs with `--isolated` and ignores the project's config. |
+| [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck (all severities), PSScriptAnalyzer (errors and parse errors). It checks every such file in the repository, so list a uv project's Python files in `exclude` (e.g. `backend/*.py`), because Ruff runs with `--isolated` and ignores the project's config. |
 | [`actionlint.yml`](.github/workflows/actionlint.yml) | GitHub Actions YAML | actionlint, with shellcheck on `run:` blocks, and a check that `ci-ok` needs every job. |
 | [`secrets.yml`](.github/workflows/secrets.yml) | Any | gitleaks over the full git history. A root `.gitleaks.toml` allowlists fake keys in fixtures. |
 
@@ -20,19 +20,19 @@ reports.
 ## Tests of the pipeline
 
 Each shared workflow has its own test. The [CI](.github/workflows/ci.yml) of this repository runs every
-workflow from the current commit against a fixture project in [`tests/`](tests) (actionlint runs over
-this repository itself):
+workflow from the current commit against a fixture project in [`tests/`](tests) (actionlint and gitleaks
+run over this repository itself):
 
 | Job | Fixture | Proves |
 |---|---|---|
-| `python` | `tests/python` | lock check, pip-audit of a runtime dependency (`packaging`), ruff, strict pyright, pytest, the `env` input |
+| `workflows` | this repository | actionlint over every workflow in `.github/workflows` |
+| `python` | `tests/python` | lock check, pip-audit of a runtime dependency (`packaging`; `extra-commands` fails if the export did not list it), ruff, strict pyright, pytest, the `env` input |
 | `python-postgres` | `tests/python` | the PostgreSQL service, two created databases, `extra-commands`, and that the job passes with `format-check: false`, `pyright: false` and `audit: false` (their skip expressions are evaluated; a skipped step shows as skipped in the run log) |
 | `node` | `tests/node` (no dependencies) | `npm ci`, audit, the four scripts |
 | `container` | `tests/container` | hadolint and a build; `publish: false`, so nothing is pushed |
-| `scripts` | `tests/scripts` | shellcheck, PSScriptAnalyzer, py_compile and ruff on the fixture files, the self-test, and that `exclude` skips a deliberately broken file (each job's log lists the files it checked) |
+| `scripts` | `tests/scripts` | shellcheck, PSScriptAnalyzer, py_compile and ruff on the fixture files, the self-test, and that `exclude` skips a deliberately broken file (each job's log lists the files it checked), and that each job found files |
 | `secrets` | this repository | gitleaks over its full history |
 | `ci-ok` | none | fails when any job above failed or was cancelled |
-| `workflows` | this repository | actionlint over all of the above |
 
 Move `v1` only when this CI is green on `main`.
 
@@ -79,10 +79,12 @@ gh api -X POST repos/SpeedB3/<repo>/rulesets --input rulesets/repo-default.json
 
 [`rulesets/org-default.json`](rulesets/org-default.json) is an organisation ruleset. It targets every
 repository, including ones created later, and repositories can't be renamed out of it. On each default
-branch it requires a pull request with one approval, and a new approval after a new push. In a repository
-with `CODEOWNERS`, that approval must come from a code owner. It also blocks force pushes and deletion. It
-has no status check, because a repository without CI could never satisfy it. The repository ruleset
-above adds `ci-ok`, and GitHub applies both rulesets. Only an organisation owner can apply it, with a token
+branch it requires a pull request with one approval, a new approval after a new push, and every review
+thread resolved. In a repository with `CODEOWNERS`, that approval must come from a code owner. It also
+blocks force pushes and deletion. It has no status check, because a repository without CI could never
+satisfy it. The repository ruleset repeats these rules, so a repository stays protected where the
+organisation ruleset is not applied, and adds `ci-ok`. GitHub applies both, so the stricter value wins: a
+review rule is relaxed only when both files change. Only an organisation owner can apply it, with a token
 that has the `admin:org` scope (`gh auth refresh -s admin:org`):
 
 ```
@@ -104,13 +106,16 @@ A breaking change, such as a renamed input, a new required input or a renamed jo
 status-check names), gets `v2`. Repositories then move over one at a time. Third-party actions are pinned by
 commit SHA, with the version in a comment. Dependabot proposes their updates every week. Six tool versions
 sit in `run:` lines or step `env`, outside Dependabot, and are bumped by hand:
-- actionlint (`.github/workflows/actionlint.yml`, the download-script commit and `1.7.12`);
-- ruff for loose scripts (`.github/workflows/scripts.yml`, `ruff@0.17.3`);
-- shellcheck (`scripts.yml`, `SHELLCHECK_VERSION` `v0.11.0` and the tarball's `SHELLCHECK_SHA256`, from the
-  release's asset digest);
-- PSScriptAnalyzer (`scripts.yml`, `PSSA_VERSION` `1.25.0`);
-- pip-audit (`python-uv.yml`, `pip-audit@2.10.1`);
-- gitleaks (`secrets.yml`, `GITLEAKS_VERSION` `8.30.1` and `GITLEAKS_SHA256`).
+- actionlint (`.github/workflows/actionlint.yml`, the download-script commit and the version argument on the
+  same `run:` line);
+- ruff for loose scripts (`.github/workflows/scripts.yml`, the `uvx ruff@...` line);
+- shellcheck (`scripts.yml`, `SHELLCHECK_VERSION` and `SHELLCHECK_SHA256`, from the release's asset digest);
+- PSScriptAnalyzer (`scripts.yml`, `PSSA_VERSION`);
+- pip-audit (`python-uv.yml`, the `uvx pip-audit@...` line);
+- gitleaks (`secrets.yml`, `GITLEAKS_VERSION` and `GITLEAKS_SHA256`).
+
+The actionlint job uses the runner image's shellcheck (on `run:` blocks) and yq; they are not pinned, so an
+image update can change that check.
 
 In the project repositories, Dependabot (`.github/dependabot.yml`) proposes weekly grouped updates of
 uv, npm and GitHub Actions dependencies. Dependabot security updates open fix PRs as soon as an advisory

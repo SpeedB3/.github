@@ -27,7 +27,7 @@ Every repository name starts with a prefix that says who the project is for:
 | `internal-` | Internal projects: tools, accelerators, and R&D we build for ourselves | `internal-GenAIFinOps` |
 | `client-` | Client projects: delivery work for a specific client engagement | `client-AcmeDataPlatform` |
 
-After the prefix, use a short descriptive name in PascalCase, without spaces or extra hyphens. `team-vaults` and `.github` are the only repositories without a prefix: they are shared infrastructure, not projects (`.github` is the name GitHub requires for the organisation profile and shared workflows).
+After the prefix, use a short descriptive name in PascalCase, without spaces or extra hyphens. `team-vaults` and `.github` are the only repositories without a prefix: they are shared infrastructure, not projects (`.github` is the name GitHub requires for the organisation profile and the starter workflow templates).
 
 ## README requirements
 

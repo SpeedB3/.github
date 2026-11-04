@@ -103,6 +103,12 @@ jobs:
       - name: Install (fails if uv.lock is out of date)
         run: uv sync --locked
 
+      - name: Set environment
+        if: inputs.env != ''
+        env:
+          EXTRA_ENV: ${{ inputs.env }}
+        run: printf '%s\n' "$EXTRA_ENV" >> "$GITHUB_ENV"
+
       - name: Audit runtime dependencies
         if: inputs.audit
         run: |
@@ -113,12 +119,6 @@ jobs:
             exit 0
           fi
           uvx pip-audit@2.10.1 -r "$RUNNER_TEMP/requirements.txt" --disable-pip --progress-spinner off
-
-      - name: Set environment
-        if: inputs.env != ''
-        env:
-          EXTRA_ENV: ${{ inputs.env }}
-        run: printf '%s\n' "$EXTRA_ENV" >> "$GITHUB_ENV"
 
       - name: Create databases
         if: inputs.postgres-version != ''
