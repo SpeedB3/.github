@@ -40,15 +40,7 @@
         "do_not_enforce_on_create": false,
         "required_status_checks": [
           {
-            "context": "python / python",
-            "integration_id": 15368
-          },
-          {
-            "context": "workbench / node",
-            "integration_id": 15368
-          },
-          {
-            "context": "workflows / actionlint",
+            "context": "ci-ok",
             "integration_id": 15368
           }
         ]

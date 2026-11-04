@@ -1,6 +1,6 @@
 {
   "name": "SpeedB3 CI",
-  "description": "The shared SpeedB3 pipeline: Python (uv, ruff, pyright, pytest, optional PostgreSQL), npm, loose scripts (Python, shell, PowerShell), workflow lint, container image (hadolint, build, GHCR publish).",
+  "description": "The shared SpeedB3 pipeline: Python (uv, ruff, pyright, pytest, optional PostgreSQL), npm, loose scripts (Python, shell, PowerShell), workflow lint, secret scan (gitleaks), container image (hadolint, build, GHCR publish), and the ci-ok gate the ruleset requires.",
   "iconName": "octicon check-circle",
   "categories": ["Python", "TypeScript", "Shell", "PowerShell", "Dockerfile"]
 }

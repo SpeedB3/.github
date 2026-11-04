@@ -9,9 +9,10 @@ its next run.
 |---|---|---|
 | [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, pip-audit of the runtime dependencies (`audit: false` turns it off), ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff and pytest must be dev dependencies, and pyright too unless `pyright: false`. |
 | [`node.yml`](.github/workflows/node.yml) | TypeScript / JavaScript (npm) | `npm ci`, `npm audit` of runtime dependencies (high and above), then the package.json scripts you list. |
-| [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. Pushes to the default branch (`main`) and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
+| [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. With `publish: true` (the default), pushes to the default branch (`main`) and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
 | [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck (all severities), PSScriptAnalyzer. It checks every such file in the repository, so list a uv project's Python files in `exclude` (e.g. `backend/*.py`), because Ruff runs with `--isolated` and ignores the project's config. |
-| [`actionlint.yml`](.github/workflows/actionlint.yml) | GitHub Actions YAML | actionlint, with shellcheck on `run:` blocks. |
+| [`actionlint.yml`](.github/workflows/actionlint.yml) | GitHub Actions YAML | actionlint, with shellcheck on `run:` blocks, and a check that `ci-ok` needs every job. |
+| [`secrets.yml`](.github/workflows/secrets.yml) | Any | gitleaks over the full git history. A root `.gitleaks.toml` allowlists fake keys in fixtures. |
 
 Each file's header shows how to call it, its `inputs` list every option, and it names the status checks it
 reports.
@@ -29,7 +30,8 @@ this repository itself):
 | `node` | `tests/node` (no dependencies) | `npm ci`, audit, the four scripts |
 | `container` | `tests/container` | hadolint and a build; `publish: false`, so nothing is pushed |
 | `scripts` | `tests/scripts` | shellcheck, PSScriptAnalyzer, py_compile and ruff on the fixture files, the self-test, and that `exclude` skips a deliberately broken file (each job's log lists the files it checked) |
-| `scripts-none` | nothing (everything excluded) | a repository without loose scripts passes |
+| `secrets` | this repository | gitleaks over its full history |
+| `ci-ok` | none | fails when any job above failed or was cancelled |
 | `workflows` | this repository | actionlint over all of the above |
 
 Move `v1` only when this CI is green on `main`.
@@ -41,12 +43,14 @@ From the repository on GitHub, go to **Actions → New workflow** and pick **Spe
 
 | Repository | Jobs |
 |---|---|
-| internal-GenAIFinOps | backend (Python + PostgreSQL 18 + OpenAPI drift check), frontend, workflows, image (`genaifinops-backend`) |
-| internal-MigrationFinOps | python (PostgreSQL 18, `-n auto`, schema and ledger checks), workbench, workflows |
-| internal-teamWorkflowAutomation | python, scripts (`scripts/*.ps1`), workflows (the poll workflows stay repo-specific) |
-| team-vaults | scripts (Python, shell, PowerShell; evals and templates skipped), workflows |
+| internal-GenAIFinOps | backend (Python + PostgreSQL 18 + OpenAPI drift check), frontend, workflows, secrets, image (`genaifinops-backend`, published on `v*` tags only) |
+| internal-MigrationFinOps | python (PostgreSQL 18, `-n auto`, schema and ledger checks), workbench, workflows, secrets |
+| internal-teamWorkflowAutomation | python, scripts (`scripts/*.ps1`), workflows, secrets (the poll workflows stay repo-specific) |
+| team-vaults | scripts (Python, shell, PowerShell; evals and templates skipped), workflows, secrets |
 
-Then add the repository's `CODEOWNERS` and ruleset (below).
+Every `ci.yml` ends with a `ci-ok` job that `needs` all the others. It is the only check the ruleset
+requires, so a new job must be added to its `needs` list, or it isn't enforced. Then add the
+repository's `CODEOWNERS`, ruleset (below) and `.github/dependabot.yml`.
 
 ## Merging into main
 
@@ -57,25 +61,19 @@ merges only when:
   `.github/CODEOWNERS`. A code owner can't approve their own pull request, so each file names at least
   two people. A new push after the approval needs a new approval.
 - every review thread is resolved;
-- every CI job passes. Only GitHub Actions can report these checks.
+- `ci-ok` passes, which means every CI job passed. Only GitHub Actions can report it.
 
 Force pushes to `main` and deleting it are blocked. There is no bypass, including for organisation
 owners. To change who can approve, edit `CODEOWNERS` in a pull request (which itself needs an approval).
 
-The rules are one ruleset per repository, in [`rulesets/`](rulesets) (`dot-github.json` is this
-repository). An owner applies them once; rulesets need admin access:
+Every repository has the same ruleset, [`rulesets/repo-default.json`](rulesets/repo-default.json). It
+requires the single check `ci-ok`, so it doesn't change when jobs are added or renamed. A repository admin
+applies it once, and updates it with `PUT` to `repos/SpeedB3/<repo>/rulesets/<id>`. Find the id with
+`gh api repos/SpeedB3/<repo>/rulesets`.
 
 ```
-for r in internal-GenAIFinOps internal-MigrationFinOps internal-teamWorkflowAutomation team-vaults; do
-  gh api -X POST repos/SpeedB3/$r/rulesets --input rulesets/$r.json
-done
-gh api -X POST repos/SpeedB3/.github/rulesets --input rulesets/dot-github.json
+gh api -X POST repos/SpeedB3/<repo>/rulesets --input rulesets/repo-default.json
 ```
-
-To update one later, find its id with `gh api repos/SpeedB3/<repo>/rulesets` and `PUT` the file to
-`repos/SpeedB3/<repo>/rulesets/<id>`. When a job is added or renamed in a `ci.yml`, update the
-`required_status_checks` in that repository's ruleset. A required check that never reports blocks every
-merge.
 
 ### Every repository, including new ones
 
@@ -83,8 +81,8 @@ merge.
 repository, including ones created later, and repositories can't be renamed out of it. On each default
 branch it requires a pull request with one approval, and a new approval after a new push. In a repository
 with `CODEOWNERS`, that approval must come from a code owner. It also blocks force pushes and deletion. It
-has no status checks, because those differ per repository. The per-repository rulesets above add them,
-and GitHub applies both, so the stricter rule wins. Only an organisation owner can apply it, with a token
+has no status check, because a repository without CI could never satisfy it. The repository ruleset
+above adds `ci-ok`, and GitHub applies both rulesets. Only an organisation owner can apply it, with a token
 that has the `admin:org` scope (`gh auth refresh -s admin:org`):
 
 ```
@@ -104,11 +102,16 @@ git tag -f v1 && git push -f origin v1
 
 A breaking change, such as a renamed input, a new required input or a renamed job (it changes the
 status-check names), gets `v2`. Repositories then move over one at a time. Third-party actions are pinned by
-commit SHA, with the version in a comment. Dependabot proposes their updates every week. Five tool versions
+commit SHA, with the version in a comment. Dependabot proposes their updates every week. Six tool versions
 sit in `run:` lines or step `env`, outside Dependabot, and are bumped by hand:
 - actionlint (`.github/workflows/actionlint.yml`, the download-script commit and `1.7.12`);
 - ruff for loose scripts (`.github/workflows/scripts.yml`, `ruff@0.17.3`);
 - shellcheck (`scripts.yml`, `SHELLCHECK_VERSION` `v0.11.0` and the tarball's `SHELLCHECK_SHA256`, from the
   release's asset digest);
 - PSScriptAnalyzer (`scripts.yml`, `PSSA_VERSION` `1.25.0`);
-- pip-audit (`python-uv.yml`, `pip-audit@2.10.1`).
+- pip-audit (`python-uv.yml`, `pip-audit@2.10.1`);
+- gitleaks (`secrets.yml`, `GITLEAKS_VERSION` `8.30.1` and `GITLEAKS_SHA256`).
+
+In the project repositories, Dependabot (`.github/dependabot.yml`) proposes weekly grouped updates of
+uv, npm and GitHub Actions dependencies. Dependabot security updates open fix PRs as soon as an advisory
+makes an audit fail.

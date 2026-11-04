@@ -66,8 +66,19 @@ jobs:
       exclude: tests/scripts/excluded/* tests/python/*.py
       python-tests: tests/scripts/selftest.py
 
-  # A repository with no loose scripts of any language must pass, not fail.
-  scripts-none:
-    uses: ./.github/workflows/scripts.yml
-    with:
-      exclude: "*"
+  secrets:
+    uses: ./.github/workflows/secrets.yml
+
+  # The one check the ruleset requires. Add every new job above to `needs`.
+  ci-ok:
+    if: always()
+    needs: [workflows, python, python-postgres, node, container, scripts, secrets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac

@@ -1,6 +1,6 @@
 # CI from the shared SpeedB3 workflows (SpeedB3/.github, docs in CI.md there).
 # Keep the jobs your repository needs and delete the rest. Then add .github/CODEOWNERS and the
-# repository's ruleset (CI.md, "Merging into main").
+# ruleset and dependabot.yml (CI.md, "Add CI to a repository").
 
 name: CI
 
@@ -51,3 +51,21 @@ jobs:
   #   with:
   #     image: <image-name>
   #     context: .
+
+  secrets:
+    uses: SpeedB3/.github/.github/workflows/secrets.yml@v1
+
+  # The one check the ruleset requires (rulesets/repo-default.json). Keep `needs` in step with the jobs
+  # above (add `image` if you enable it).
+  ci-ok:
+    if: always()
+    needs: [python, frontend, scripts, workflows, secrets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac

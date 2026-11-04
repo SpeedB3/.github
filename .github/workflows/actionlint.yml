@@ -1,5 +1,6 @@
 # Reusable check of the calling repository's workflow files with actionlint (and shellcheck),
-# including the starter workflows in workflow-templates/ when that folder exists.
+# including the starter workflows in workflow-templates/ when that folder exists. It also checks
+# that a `ci-ok` job needs every other job of its workflow.
 #
 #   jobs:
 #     workflows:
@@ -30,3 +31,19 @@ jobs:
           shopt -s nullglob
           files=(.github/workflows/*.yml .github/workflows/*.yaml workflow-templates/*.yml workflow-templates/*.yaml)
           ./actionlint -color "${files[@]}"
+
+      # ci-ok is the only check the rulesets require, so a job missing from its needs is never enforced.
+      - name: ci-ok needs every job
+        run: |
+          status=0
+          for f in .github/workflows/*.yml .github/workflows/*.yaml workflow-templates/*.yml; do
+            [ -f "$f" ] || continue
+            [ "$(yq '.jobs | has("ci-ok")' "$f")" = "true" ] || continue
+            missing=$(comm -23 <(yq '.jobs | keys | .[]' "$f" | grep -vx 'ci-ok' | sort) \
+                               <(yq '.jobs."ci-ok".needs[]' "$f" | sort))
+            if [ -n "$missing" ]; then
+              echo "::error file=$f::ci-ok does not need: $(echo "$missing" | tr '\n' ' ')"
+              status=1
+            fi
+          done
+          exit "$status"
