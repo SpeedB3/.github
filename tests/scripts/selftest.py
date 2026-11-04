@@ -5,9 +5,9 @@ import sys
 
 
 def main() -> int:
-    if sys.version_info[:2] != (3, 12):
+    if sys.version_info[:2] != (3, 13):
         print(
-            f"expected Python 3.12 (scripts.yml python-version default), got {sys.version.split()[0]}",
+            f"expected Python 3.13 (ci.yml scripts job python-version), got {sys.version.split()[0]}",
             file=sys.stderr,
         )
         return 1

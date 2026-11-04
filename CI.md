@@ -28,11 +28,11 @@ run over this repository itself):
 | `workflows` | this repository | actionlint over every workflow in `.github/workflows` |
 | `python` | `tests/python` | lock check, pip-audit of a runtime dependency (`packaging`; `extra-commands` fails if the export did not list it), ruff, strict pyright, pytest, the `env` input |
 | `python-postgres` | `tests/python` | the PostgreSQL service, two created databases, `extra-commands`, and that the job passes with `format-check: false`, `pyright: false` and `audit: false` (their skip expressions are evaluated; a skipped step shows as skipped in the run log) |
-| `node` | `tests/node` (no dependencies) | `npm ci`, audit, the four scripts |
+| `node` | `tests/node` (no dependencies) | `npm ci`, the audit step runs (no dependencies, so it has nothing to find), the four scripts |
 | `container` | `tests/container` | hadolint and a build; `publish: false`, so nothing is pushed |
-| `scripts` | `tests/scripts` | shellcheck, PSScriptAnalyzer, py_compile and ruff on the fixture files, the self-test, and that `exclude` skips a deliberately broken file (each job's log lists the files it checked), and that each job found files |
+| `scripts` | `tests/scripts` | shellcheck, PSScriptAnalyzer, py_compile and ruff on the fixture files, the self-test under a non-default `python-version`, and that `exclude` skips a deliberately broken file (each job's log lists the files it checked), and each job's file count (asserted by `ci-ok`) |
 | `secrets` | this repository | gitleaks over its full history |
-| `ci-ok` | none | fails when any job above failed or was cancelled |
+| `ci-ok` | none | fails when any job above failed or was cancelled, or when the `scripts` job reported a missing or zero file count |
 
 Move `v1` only when this CI is green on `main`.
 

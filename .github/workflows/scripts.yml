@@ -30,7 +30,7 @@ on:
         type: string
         default: "E9,F"
       python-version:
-        description: Python version used to compile, lint and run the self-tests.
+        description: Python version used to compile the files and run the self-tests (Ruff does not use it).
         type: string
         default: "3.12"
       python-tests:
@@ -55,8 +55,8 @@ env:
   EXCLUDE: ${{ inputs.exclude }}
   # The List files step of all three jobs, so they select files the same way. Called as
   # `bash -eo pipefail -c "$LIST_FILES" list-files <label> <find -name predicates>`: $0 is a name, $1
-  # the label, the rest the predicates (the script adds the parentheses). Kept here, not in a run:
-  # block, so actionlint's shellcheck does not see it.
+  # the label, the rest the predicates (the script adds the parentheses). As an env value, not a run:
+  # block, it is not checked by actionlint's shellcheck.
   LIST_FILES: |
     label=$1; shift
     read -r -d '' -a globs <<< "$EXCLUDE" || true

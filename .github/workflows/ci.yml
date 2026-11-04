@@ -67,6 +67,7 @@ jobs:
     uses: ./.github/workflows/scripts.yml
     with:
       exclude: tests/scripts/excluded/* tests/python/*.py
+      python-version: "3.13"
       python-tests: tests/scripts/selftest.py
 
   secrets:
