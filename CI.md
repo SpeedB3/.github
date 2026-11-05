@@ -3,7 +3,7 @@
 Every SpeedB3 repository runs the same pipeline. The pipeline lives here as
 [reusable workflows](https://docs.github.com/actions/using-workflows/reusing-workflows). Each repository
 has only a short `.github/workflows/ci.yml` that calls them. A fix made here reaches every repository on
-its next run.
+its next run. What isn't built yet, and why, is in [future_step.md](future_step.md).
 
 | Workflow | Language | What it does |
 |---|---|---|
