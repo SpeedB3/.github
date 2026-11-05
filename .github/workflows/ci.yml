@@ -83,10 +83,12 @@ jobs:
       - name: Every job passed
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
+          CI_OK_WORKFLOWS: ${{ needs.workflows.outputs.ci-ok-workflows }}
           SCRIPT_COUNTS: ${{ needs.scripts.outputs.python-files }} ${{ needs.scripts.outputs.shell-files }} ${{ needs.scripts.outputs.powershell-files }}
         run: |
           echo "Job results: $RESULTS"
           case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
+          [ "${CI_OK_WORKFLOWS:-0}" != 0 ] || { echo "workflows self-test found no ci-ok job to check"; exit 1; }
           read -r -a counts <<< "$SCRIPT_COUNTS"
           [ "${#counts[@]}" = 3 ] || { echo "scripts self-test did not report three file counts"; exit 1; }
           for c in "${counts[@]}"; do [ "$c" != 0 ] || { echo "scripts self-test checked no files of a language"; exit 1; }; done

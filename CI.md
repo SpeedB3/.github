@@ -25,14 +25,14 @@ run over this repository itself):
 
 | Job | Fixture | Proves |
 |---|---|---|
-| `workflows` | this repository | actionlint over every workflow in `.github/workflows` |
+| `workflows` | this repository | actionlint over every workflow in `.github/workflows` and the starter workflow in `workflow-templates/`, and the ci-ok `needs`/`if:` check on both, and that it found a ci-ok job to check (count asserted by `ci-ok`) |
 | `python` | `tests/python` | lock check, pip-audit of a runtime dependency (`packaging`; `extra-commands` fails if the export did not list it), ruff, strict pyright, pytest, the `env` input |
 | `python-postgres` | `tests/python` | the PostgreSQL service, two created databases, `extra-commands`, and that the job passes with `format-check: false`, `pyright: false` and `audit: false` (their skip expressions are evaluated; a skipped step shows as skipped in the run log) |
 | `node` | `tests/node` (no dependencies) | `npm ci`, the audit step runs (no dependencies, so it has nothing to find), the four scripts |
 | `container` | `tests/container` | hadolint and a build; `publish: false`, so nothing is pushed |
 | `scripts` | `tests/scripts` | shellcheck, PSScriptAnalyzer, py_compile and ruff on the fixture files, the self-test under a non-default `python-version`, and that `exclude` skips a deliberately broken file (each job's log lists the files it checked), and each job's file count (asserted by `ci-ok`) |
 | `secrets` | this repository | gitleaks over its full history |
-| `ci-ok` | none | fails when any job above failed or was cancelled, or when the `scripts` job reported a missing or zero file count |
+| `ci-ok` | none | fails when any job above failed or was cancelled, when the `scripts` job reported a missing or zero file count, or when the `workflows` job reported no ci-ok workflow |
 
 Move `v1` only when this CI is green on `main`.
 
@@ -106,8 +106,8 @@ A breaking change, such as a renamed input, a new required input or a renamed jo
 status-check names), gets `v2`. Repositories then move over one at a time. Third-party actions are pinned by
 commit SHA, with the version in a comment. Dependabot proposes their updates every week. Six tool versions
 sit in `run:` lines or step `env`, outside Dependabot, and are bumped by hand:
-- actionlint (`.github/workflows/actionlint.yml`, the download-script commit and the version argument on the
-  same `run:` line);
+- actionlint (`.github/workflows/actionlint.yml`, the download-script commit and the version argument in the
+  actionlint step's `run:` block);
 - ruff for loose scripts (`.github/workflows/scripts.yml`, the `uvx ruff@...` line);
 - shellcheck (`scripts.yml`, `SHELLCHECK_VERSION` and `SHELLCHECK_SHA256`, from the release's asset digest);
 - PSScriptAnalyzer (`scripts.yml`, `PSSA_VERSION`);
