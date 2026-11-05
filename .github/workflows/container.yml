@@ -1,7 +1,8 @@
 # Reusable CD: lints a Dockerfile with hadolint, builds the image and publishes it to GitHub
-# Container Registry. Pull requests only build it. Pushes to the default branch publish :main,
-# :sha-<short> and :latest; tags v1.2.3 publish :1.2.3 and :1.2. The caller must grant
-# `packages: write`.
+# Container Registry. Pull requests only build it. Pushes to the default branch publish :<branch>
+# (e.g. :main), :sha-<short> and :latest; tags v1.2.3 publish :1.2.3, :1.2 and :sha-<short>
+# (metadata-action's default flavor latest=auto also adds :latest on a non-prerelease semver tag);
+# other v* tags publish only :sha-<short>. The caller must grant `packages: write`.
 #
 #   jobs:
 #     image:
@@ -34,6 +35,7 @@ on:
         type: string
         default: ""
       platforms:
+        description: Comma-separated buildx target platforms, e.g. linux/amd64,linux/arm64.
         type: string
         default: linux/amd64
       publish:
@@ -93,7 +95,6 @@ jobs:
           images: ghcr.io/speedb3/${{ inputs.image }}
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

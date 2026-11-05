@@ -1,8 +1,11 @@
-# Reusable CI for loose scripts that are not part of a uv or npm project (skills, tooling).
+# Reusable CI for scripts (skills, tooling): checks every .py, .sh, .bash, .ps1 and .psm1 file in the
+# repository outside .git. List the Python files of a uv project in `exclude` as a glob such as
+# `backend/*.py` (find -path `*` also matches `/`, so it covers every depth), because Ruff runs here
+# with --isolated and ignores the project's ruff config.
 # One job per language; a job with no files of its language passes without checking anything.
 #   python:     py_compile, ruff (bug rules only by default), then the self-tests you list
-#   shell:      shellcheck
-#   powershell: PSScriptAnalyzer (errors)
+#   shell:      shellcheck (all severities; a .shellcheckrc in the repository can relax it)
+#   powershell: PSScriptAnalyzer (errors and parse errors)
 #
 #   jobs:
 #     scripts:
@@ -19,31 +22,58 @@ on:
   workflow_call:
     inputs:
       exclude:
-        description: Space-separated path globs to skip (find -path syntax), e.g. "*/evals/* */templates/*".
+        description: Whitespace-separated (spaces or newlines) folders or path globs to skip, relative to the repository root (find -path syntax), e.g. "backend/*.py */evals/*".
         type: string
         default: ""
       ruff-select:
-        description: Ruff rules for Python scripts.
+        description: Comma-separated Ruff rule codes or prefixes passed to --select, e.g. "E9,F,B".
         type: string
         default: "E9,F"
       python-version:
+        description: Python version used to compile the files and run the self-tests (Ruff does not use it).
         type: string
         default: "3.12"
       python-tests:
-        description: Space-separated Python scripts that exit non-zero on failure.
+        description: Whitespace-separated (spaces or newlines) Python scripts that exit non-zero on failure.
         type: string
         default: ""
+    outputs:
+      python-files:
+        description: Number of Python files the python job checked.
+        value: ${{ jobs.python.outputs.count }}
+      shell-files:
+        description: Number of shell files the shell job checked.
+        value: ${{ jobs.shell.outputs.count }}
+      powershell-files:
+        description: Number of PowerShell files the powershell job checked.
+        value: ${{ jobs.powershell.outputs.count }}
 
 permissions:
   contents: read
 
 env:
   EXCLUDE: ${{ inputs.exclude }}
+  # The List files step of all three jobs, so they select files the same way. Called as
+  # `bash -eo pipefail -c "$LIST_FILES" list-files <label> <find -name predicates>`: $0 is a name, $1
+  # the label, the rest the predicates (the script adds the parentheses). As an env value, not a run:
+  # block, it is not checked by actionlint's shellcheck.
+  LIST_FILES: |
+    label=$1; shift
+    read -r -d '' -a globs <<< "$EXCLUDE" || true
+    args=()
+    for g in "${globs[@]}"; do g=${g#./}; g=${g%/}; args+=(-not -path "./$g" -not -path "./$g/*"); done
+    find . \( "$@" \) -not -path './.git/*' "${args[@]}" -print0 > "$RUNNER_TEMP/files"
+    count=$(tr -cd '\0' < "$RUNNER_TEMP/files" | wc -c)
+    echo "Checking $count $label files:"
+    tr '\0' '\n' < "$RUNNER_TEMP/files"
+    echo "count=$count" >> "$GITHUB_OUTPUT"
 
 jobs:
   python:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      count: ${{ steps.files.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -57,15 +87,7 @@ jobs:
 
       - name: List files
         id: files
-        run: |
-          read -ra globs <<< "$EXCLUDE"
-          args=()
-          for g in "${globs[@]}"; do args+=(-not -path "./$g"); done
-          find . -name '*.py' -not -path './.git/*' "${args[@]}" -print0 > "$RUNNER_TEMP/files"
-          count=$(tr -cd '\0' < "$RUNNER_TEMP/files" | wc -c)
-          echo "Checking $count Python files:"
-          tr '\0' '\n' < "$RUNNER_TEMP/files"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
+        run: bash -eo pipefail -c "$LIST_FILES" list-files Python -name '*.py'
 
       - name: Compile
         if: steps.files.outputs.count != '0'
@@ -82,7 +104,7 @@ jobs:
         env:
           TESTS: ${{ inputs.python-tests }}
         run: |
-          read -ra tests <<< "$TESTS"
+          read -r -d '' -a tests <<< "$TESTS" || true
           for t in "${tests[@]}"; do
             echo "::group::$t"
             uv run --no-project python -B "$t"
@@ -92,41 +114,63 @@ jobs:
   shell:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      count: ${{ steps.files.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: shellcheck
+      - name: List files
+        id: files
+        run: bash -eo pipefail -c "$LIST_FILES" list-files shell -name '*.sh' -o -name '*.bash'
+
+      # Pinned, not the runner image's copy, so an image update cannot change the gate.
+      - name: Install shellcheck
+        if: steps.files.outputs.count != '0'
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          SHELLCHECK_SHA256: b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6
         run: |
-          read -ra globs <<< "$EXCLUDE"
-          args=()
-          for g in "${globs[@]}"; do args+=(-not -path "./$g"); done
-          mapfile -d '' files < <(find . \( -name '*.sh' -o -name '*.bash' \) -not -path './.git/*' "${args[@]}" -print0)
-          echo "Checking ${#files[@]} shell files:"
-          printf '%s\n' "${files[@]}"
-          if [ "${#files[@]}" -gt 0 ]; then shellcheck --format=gcc "${files[@]}"; fi
+          tarball="shellcheck-$SHELLCHECK_VERSION.linux.x86_64.tar.gz"
+          curl -sSfL -o "$RUNNER_TEMP/$tarball" "https://github.com/koalaman/shellcheck/releases/download/$SHELLCHECK_VERSION/$tarball"
+          echo "$SHELLCHECK_SHA256  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/shellcheck-$SHELLCHECK_VERSION" >> "$GITHUB_PATH"
+
+      - name: shellcheck
+        if: steps.files.outputs.count != '0'
+        run: |
+          shellcheck --version
+          xargs -0 shellcheck --format=gcc < "$RUNNER_TEMP/files"
 
   powershell:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      count: ${{ steps.files.outputs.count }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      - name: List files
+        id: files
+        run: bash -eo pipefail -c "$LIST_FILES" list-files PowerShell -name '*.ps1' -o -name '*.psm1'
+
       - name: PSScriptAnalyzer
+        if: steps.files.outputs.count != '0'
         shell: pwsh
+        env:
+          PSSA_VERSION: 1.25.0
         run: |
-          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser }
-          $exclude = @($env:EXCLUDE -split ' ' | Where-Object { $_ })
-          $files = Get-ChildItem -Recurse -File -Include *.ps1, *.psm1 | Where-Object {
-            $rel = './' + [IO.Path]::GetRelativePath($PWD, $_.FullName).Replace('\', '/')
-            -not ($exclude | Where-Object { $rel -like "./$_" })
+          # Pinned, not whatever the runner image or PSGallery has today.
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer | Where-Object Version -eq $env:PSSA_VERSION)) {
+            Install-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION -Force -Scope CurrentUser
           }
-          "Checking $(@($files).Count) PowerShell files:"
-          $files | ForEach-Object { './' + [IO.Path]::GetRelativePath($PWD, $_.FullName) }
-          if (-not $files) { exit 0 }
-          $found = $files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Error }
+          Import-Module PSScriptAnalyzer -RequiredVersion $env:PSSA_VERSION
+          "PSScriptAnalyzer $((Get-Module PSScriptAnalyzer).Version)"
+          $files = @([IO.File]::ReadAllText("$env:RUNNER_TEMP/files").Split([char]0, [StringSplitOptions]::RemoveEmptyEntries))
+          $found = $files | Invoke-ScriptAnalyzer -Severity Error, ParseError
           $found | Format-Table -AutoSize | Out-String -Width 200
           if ($found) { exit 1 }
