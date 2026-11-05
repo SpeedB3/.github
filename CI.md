@@ -11,7 +11,7 @@ its next run.
 | [`node.yml`](.github/workflows/node.yml) | TypeScript / JavaScript (npm) | `npm ci`, `npm audit` of runtime dependencies (high and above), then the package.json scripts you list. |
 | [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. With `publish: true` (the default), pushes to the default branch (`main`) and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
 | [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck (all severities), PSScriptAnalyzer (errors and parse errors). It checks every such file in the repository, so list a uv project's Python files in `exclude` (e.g. `backend/*.py`), because Ruff runs with `--isolated` and ignores the project's config. |
-| [`actionlint.yml`](.github/workflows/actionlint.yml) | GitHub Actions YAML | actionlint, with shellcheck on `run:` blocks, and a check that `ci-ok` needs every job. |
+| [`actionlint.yml`](.github/workflows/actionlint.yml) | GitHub Actions YAML | actionlint, with shellcheck on `run:` blocks, and a check that `ci-ok` needs every job and runs with `if: always()`. |
 | [`secrets.yml`](.github/workflows/secrets.yml) | Any | gitleaks over the full git history. A root `.gitleaks.toml` allowlists fake keys in fixtures. |
 
 Each file's header shows how to call it, its `inputs` list every option, and it names the status checks it
@@ -48,8 +48,8 @@ From the repository on GitHub, go to **Actions → New workflow** and pick **Spe
 | internal-teamWorkflowAutomation | python, scripts (`scripts/*.ps1`), workflows, secrets (the poll workflows stay repo-specific) |
 | team-vaults | scripts (Python, shell, PowerShell; evals and templates skipped), workflows, secrets |
 
-Every `ci.yml` ends with a `ci-ok` job that `needs` all the others. It is the only check the ruleset
-requires, so a new job must be added to its `needs` list, or it isn't enforced. Then add the
+Every `ci.yml` ends with a `ci-ok` job that `needs` all the others and runs with `if: always()`. It is the only
+check the ruleset requires, so a new job must be added to its `needs` list, or it isn't enforced. Then add the
 repository's `CODEOWNERS`, ruleset (below) and `.github/dependabot.yml`.
 
 ## Merging into main

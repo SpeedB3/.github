@@ -1,6 +1,6 @@
 # Reusable check of the calling repository's workflow files with actionlint (and shellcheck),
 # including the starter workflows in workflow-templates/ when that folder exists. It also checks
-# that a `ci-ok` job needs every other job of its workflow.
+# that a `ci-ok` job needs every other job of its workflow and runs with `if: always()`.
 #
 #   jobs:
 #     workflows:
@@ -29,12 +29,14 @@ jobs:
       # shellcheck it runs on run: blocks and the yq of the next step come from the runner image.
       - name: actionlint
         run: |
+          command -v shellcheck >/dev/null || { echo '::error::shellcheck not found on the runner'; exit 1; }
           bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
           shopt -s nullglob
           files=(.github/workflows/*.yml .github/workflows/*.yaml workflow-templates/*.yml workflow-templates/*.yaml)
           ./actionlint -color "${files[@]}"
 
-      # ci-ok is the only check the rulesets require, so a job missing from its needs is never enforced.
+      # ci-ok is the only check the rulesets require, so a job missing from its needs is never enforced,
+      # and a ci-ok without if: always() is skipped (which counts as passing) when a job fails.
       - name: ci-ok needs every job
         run: |
           command -v yq >/dev/null || { echo '::error::yq not found on the runner'; exit 1; }
@@ -50,5 +52,10 @@ jobs:
               echo "::error file=$f::ci-ok does not need: $(echo "$missing" | tr '\n' ' ')"
               status=1
             fi
+            cond=$(yq '.jobs."ci-ok"."if" // ""' "$f")
+            case "$cond" in
+              *'always()'*|*'!cancelled()'*) ;;
+              *) echo "::error file=$f::ci-ok must run with if: always() (or !cancelled()), or a failed job skips it and the required check passes"; status=1 ;;
+            esac
           done
           exit "$status"
