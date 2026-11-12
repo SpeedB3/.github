@@ -1,10 +1,17 @@
-# Weekly updates of the SHA-pinned actions used by the shared workflows.
+# Every pull request requests a review from the code owners, so keep the number low: one
+# grouped version-update PR per ecosystem per week (at most 2 open), and security fixes grouped
+# into one PR per ecosystem (security updates are a repository setting).
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
     groups:
-      actions:
+      github_actions:
+        applies-to: version-updates
+        patterns: ["*"]
+      github_actions_security:
+        applies-to: security-updates
         patterns: ["*"]

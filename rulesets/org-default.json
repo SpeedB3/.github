@@ -1,5 +1,5 @@
 {
-  "name": "main",
+  "name": "default branch: one review",
   "target": "branch",
   "enforcement": "active",
   "bypass_actors": [],
@@ -9,6 +9,13 @@
         "~DEFAULT_BRANCH"
       ],
       "exclude": []
+    },
+    "repository_name": {
+      "include": [
+        "~ALL"
+      ],
+      "exclude": [],
+      "protected": true
     }
   },
   "rules": [
@@ -30,27 +37,6 @@
           "squash",
           "merge",
           "rebase"
-        ]
-      }
-    },
-    {
-      "type": "required_status_checks",
-      "parameters": {
-        "strict_required_status_checks_policy": false,
-        "do_not_enforce_on_create": false,
-        "required_status_checks": [
-          {
-            "context": "python / python",
-            "integration_id": 15368
-          },
-          {
-            "context": "workbench / node",
-            "integration_id": 15368
-          },
-          {
-            "context": "workflows / actionlint",
-            "integration_id": 15368
-          }
         ]
       }
     }
