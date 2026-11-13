@@ -43,7 +43,8 @@ From the repository on GitHub, go to **Actions → New workflow** and pick **Spe
 | internal-GenAIFinOps | backend (Python + PostgreSQL 18 + OpenAPI drift check), frontend, workflows, image (`genaifinops-backend`) |
 | internal-MigrationFinOps | python (PostgreSQL 18, `-n auto`, schema and ledger checks), workbench, workflows |
 | internal-teamWorkflowAutomation | python, scripts (`scripts/*.ps1`), workflows (the poll workflows stay repo-specific) |
-| team-vaults | scripts (Python, shell, PowerShell; evals and templates skipped), workflows |
+| team-vault-skills | scripts (Python, shell, PowerShell; evals and templates skipped), workflows |
+| team-vault-templates | scripts (Python, shell, PowerShell; scaffolds and fixtures skipped), workflows |
 
 Then add the repository's `CODEOWNERS` and ruleset (below).
 
@@ -65,7 +66,7 @@ The rules are one ruleset per repository, in [`rulesets/`](rulesets) (`dot-githu
 repository). An owner applies them once; rulesets need admin access:
 
 ```
-for r in internal-GenAIFinOps internal-MigrationFinOps internal-teamWorkflowAutomation team-vaults; do
+for r in internal-GenAIFinOps internal-MigrationFinOps internal-teamWorkflowAutomation team-vault-skills team-vault-templates client-VentureWorkflowAutomation client-MizuhoWorkflowAutomation; do
   gh api -X POST repos/SpeedB3/$r/rulesets --input rulesets/$r.json
 done
 gh api -X POST repos/SpeedB3/.github/rulesets --input rulesets/dot-github.json
