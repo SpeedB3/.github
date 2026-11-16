@@ -15,7 +15,7 @@
         "~ALL"
       ],
       "exclude": [],
-      "protected": true
+      "protected": false
     }
   },
   "rules": [

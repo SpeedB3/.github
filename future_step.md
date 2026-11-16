@@ -14,8 +14,10 @@ pipeline works is in [CI.md](CI.md).
   - **No target.** No repository has one today:
     - GenAIFinOps lists deployment as out of scope;
     - MigrationFinOps runs locally;
-    - teamWorkflowAutomation runs as a scheduled workflow from `main`;
-    - team-vaults ships skills as releases (its own `release.yml`, still waiting for a pull request).
+    - teamWorkflowAutomation runs as a scheduled workflow from `main` (paused until its secrets are set);
+    - team-vault-skills ships skills as releases (its own `release.yml`, still waiting for a pull request);
+    - team-vault-templates holds templates, with nothing to deploy;
+    - the client repositories have no code or no hosting target yet.
   - **No approval step before a deploy.** Required reviewers on an environment need GitHub Enterprise for
     private repositories. The SpeedB3 Team plan only limits an environment to certain branches.
   - **Logins change.** An environment changes the OIDC subject, so every federated credential must be
@@ -30,26 +32,30 @@ pipeline works is in [CI.md](CI.md).
   The federated credential must be created for the new subject at the same time, or the daily poll can't
   log in.
 
-## 3. CI for client-VentureWorkflowAutomation
+## 3. CI for the client repositories
 
-- **What:**
-  - a `ci.yml` from the starter workflow;
-  - a `CODEOWNERS` file;
-  - [`rulesets/repo-default.json`](rulesets/repo-default.json);
-  - a `.github/dependabot.yml`.
-- **When:** with its first code. It has been empty since 2 November 2026.
-- **Why:** until then, nothing checks it. Its reviews are enforced only once the organisation ruleset is
-  applied.
+- **What:** in each client repository, a `ci.yml` from the starter workflow (with `ci-ok`), then
+  [`rulesets/repo-default.json`](rulesets/repo-default.json), and a `.github/dependabot.yml`.
+- **When:** with each repository's first code. Apply `repo-default.json` only after its `ci.yml` with
+  `ci-ok` has merged, or every pull request waits for a check that never runs.
+- **Why:** until then, nothing checks the code.
+- **Status:**
+  - client-VentureWorkflowAutomation and client-MizuhoWorkflowAutomation: `CODEOWNERS` and a review-only
+    ruleset; no `ci.yml` yet.
+  - client-OCBCCopywritingAssistant: a `ci.yml` (actionlint); no ruleset yet, and the `devs` team has no
+    access, so its `CODEOWNERS` line is ignored.
+  - chilliclaw: a fork with its own branches (`stable`, `main`); no ruleset and no `CODEOWNERS`. Agree the
+    protected branch with its owner first.
 - **Holding it back:** a client may have its own approvers or pipeline rules. Ask before copying ours.
 
 ## 4. Automatic updates of the hand-pinned tools
 
-- **What:** Renovate with a regex custom manager for the six tool versions in `run:` lines (CI.md, "Versions").
+- **What:** Renovate with a regex custom manager for the seven hand-pinned tool versions (CI.md, "Versions").
 - **When:** if a bump is missed for a quarter, or one of the tools has a security fix.
 - **Why:** Dependabot can't see versions written in `run:` lines.
 - **Holding it back:**
   - Renovate is another bot, and every pull request it opens emails the code owners.
-  - The six tools change rarely, so checking them by hand once a quarter is enough for now.
+  - The seven tools change rarely, so checking them by hand once a quarter is enough for now.
 
 ## 5. Code scanning (CodeQL)
 

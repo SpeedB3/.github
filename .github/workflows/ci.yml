@@ -70,13 +70,19 @@ jobs:
       python-version: "3.13"
       python-tests: tests/scripts/selftest.py
 
+  # A repository with no loose scripts of any language must pass, and check nothing.
+  scripts-none:
+    uses: ./.github/workflows/scripts.yml
+    with:
+      exclude: "*"
+
   secrets:
     uses: ./.github/workflows/secrets.yml
 
   # The one check the ruleset requires. Add every new job above to `needs`.
   ci-ok:
     if: always()
-    needs: [workflows, python, python-postgres, node, container, scripts, secrets]
+    needs: [workflows, python, python-postgres, node, container, scripts, scripts-none, secrets]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -85,6 +91,7 @@ jobs:
           RESULTS: ${{ join(needs.*.result, ' ') }}
           CI_OK_WORKFLOWS: ${{ needs.workflows.outputs.ci-ok-workflows }}
           SCRIPT_COUNTS: ${{ needs.scripts.outputs.python-files }} ${{ needs.scripts.outputs.shell-files }} ${{ needs.scripts.outputs.powershell-files }}
+          NONE_COUNTS: ${{ needs.scripts-none.outputs.python-files }} ${{ needs.scripts-none.outputs.shell-files }} ${{ needs.scripts-none.outputs.powershell-files }}
         run: |
           echo "Job results: $RESULTS"
           case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
@@ -92,3 +99,4 @@ jobs:
           read -r -a counts <<< "$SCRIPT_COUNTS"
           [ "${#counts[@]}" = 3 ] || { echo "scripts self-test did not report three file counts"; exit 1; }
           for c in "${counts[@]}"; do [ "$c" != 0 ] || { echo "scripts self-test checked no files of a language"; exit 1; }; done
+          [ "$NONE_COUNTS" = "0 0 0" ] || { echo "scripts-none self-test should check no files (counts: $NONE_COUNTS)"; exit 1; }
