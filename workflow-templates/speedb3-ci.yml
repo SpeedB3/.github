@@ -68,4 +68,4 @@ jobs:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
           echo "Job results: $RESULTS"
-          case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac
+          case " $RESULTS " in *" failure "*|*" cancelled "*|*" skipped "*) exit 1 ;; esac
