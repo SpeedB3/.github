@@ -5,6 +5,22 @@ Every SpeedB3 repository runs the same pipeline. The pipeline lives here as
 has only a short `.github/workflows/ci.yml` that calls them. A fix made here reaches every repository on
 its next run. What isn't built yet, and why, is in [future_step.md](future_step.md).
 
+This repository is public, and so are its commit messages, branch names, pull requests and comments. Keep
+client names, client repository names, engagement details and how a client repository is protected out of all
+of them (profile, "Ground rules"). The `public-content` job checks pull requests (again when the title or
+description is edited) and pushes to `main`: the files and file names, what every new commit adds, commit
+messages, and the title, description and branch name. It fails on any `client-<Name>` and on the names in
+the `PUBLIC_DENYLIST` secret, a case-insensitive extended regular expression kept as a secret so the list
+isn't published, and its log never shows a matched name. It can't see comments, and it runs only after a
+branch is pushed, so check before pushing.
+Add each new client to the secret, for both Actions and Dependabot (whose pull requests can't read Actions
+secrets); `gh` asks for the value:
+
+```
+gh secret set PUBLIC_DENYLIST --repo SpeedB3/.github --app actions
+gh secret set PUBLIC_DENYLIST --repo SpeedB3/.github --app dependabot
+```
+
 | Workflow | Language | What it does |
 |---|---|---|
 | [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, pip-audit of the runtime dependencies (`audit: false` turns it off), ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff and pytest must be dev dependencies, and pyright too unless `pyright: false`. |
@@ -33,6 +49,7 @@ run over this repository itself):
 | `scripts` | `tests/scripts` | shellcheck, PSScriptAnalyzer, py_compile and ruff on the fixture files, the self-test under a non-default `python-version`, and that `exclude` skips a deliberately broken file (each job's log lists the files it checked), and each job's file count (asserted by `ci-ok`) |
 | `scripts-none` | none (`exclude: "*"`) | a repository with no loose scripts passes and checks nothing (its three file counts, asserted by `ci-ok`, are 0) |
 | `secrets` | this repository | gitleaks over the history of the checked-out commit |
+| `public-content` | this repository | no client named in its files, file names, commit messages, or a pull request's title, description or branch name (above) |
 | `ci-ok` | none | fails when any job above failed, was cancelled or was skipped, when the `scripts` job reported a missing or zero file count, when `scripts-none` checked any file, or when the `workflows` job reported no ci-ok workflow |
 
 Move `v1` only when this CI is green on `main`.
@@ -48,7 +65,7 @@ From the repository on GitHub, go to **Actions → New workflow** and pick **Spe
 | internal-MigrationFinOps | python (PostgreSQL 18, `-n auto`, schema and ledger checks), workbench, workflows, secrets |
 | internal-teamWorkflowAutomation | python, scripts (`scripts/*.ps1`), workflows, secrets (the poll workflows stay repo-specific) |
 | team-vault-skills | scripts (Python, shell, PowerShell; evals and templates skipped), workflows, secrets |
-| team-vault-templates | scripts (Python, shell, PowerShell; scaffolds and fixtures skipped), workflows |
+| team-vault-templates | scripts (Python, shell, PowerShell; scaffolds and fixtures skipped), workflows, secrets |
 
 The rows describe each `ci.yml` once its CI pull request (ci-ok gate, secret scan, Dependabot) has merged.
 
@@ -68,13 +85,13 @@ merges only when:
   repository, or GitHub ignores the line. A code owner can't approve their own pull request, so the team
   keeps at least two members. A new push after the approval needs a new approval.
 - every review thread is resolved;
-- `ci-ok` passes, which means every CI job passed. Only GitHub Actions can report it.
+- `ci-ok` passes, which means every job in its `needs` list succeeded. Only GitHub Actions can report it.
 
 Force pushes to `main` and deleting it are blocked. There is no bypass, including for organisation
 owners. To change who can approve, change the team's members, or edit `CODEOWNERS` in a pull request
 (which itself needs an approval).
 
-Every repository has the same ruleset, [`rulesets/repo-default.json`](rulesets/repo-default.json). It
+Each repository gets the same ruleset, [`rulesets/repo-default.json`](rulesets/repo-default.json). It
 requires the single check `ci-ok`, so it doesn't change when jobs are added or renamed. A repository admin
 applies it once, and updates it with `PUT` to `repos/SpeedB3/<repo>/rulesets/<id>`. Find the id with
 `gh api repos/SpeedB3/<repo>/rulesets`.
@@ -111,8 +128,12 @@ Callers use `@v1`. `v1` is a tag that moves forward for compatible changes:
 git tag -f v1 && git push -f origin v1
 ```
 
+Only repository admins can create, move or delete a `v*` tag here (tag ruleset
+[`rulesets/dot-github-tags.json`](rulesets/dot-github-tags.json)), because every caller runs whatever `v1`
+points at. Admins can change rulesets anyway, so the bypass gives them nothing new.
+
 A breaking change, such as a renamed input or output, or a new required input, gets `v2`. Repositories then
-move over one at a time. A renamed job is not breaking for the rulesets, which require only `ci-ok`. A new
+move over one at a time. A renamed job is not breaking for a repository whose ruleset requires only `ci-ok`. A new
 check that can fail on existing code (for example a stricter tool version) is not breaking either, but run
 each caller against the branch before moving `v1`. Third-party actions are pinned by commit SHA, with the
 version in a comment. Dependabot proposes their updates every week. Seven tool versions sit in `run:` lines,

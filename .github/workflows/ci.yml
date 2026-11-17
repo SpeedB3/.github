@@ -8,6 +8,8 @@ on:
   push:
     branches: [main]
   pull_request:
+    # edited: a changed title or description is checked again (public-content).
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
@@ -79,10 +81,70 @@ jobs:
   secrets:
     uses: ./.github/workflows/secrets.yml
 
+  # This repository is public: its files, file names, commit messages and pull requests must not name a client
+  # (profile, "Ground rules"). Blocked: any `client-<Name>`, and the names in the PUBLIC_DENYLIST secret (a
+  # case-insensitive extended regular expression, set for Actions and Dependabot), so this file doesn't publish
+  # them. The log never shows a matched name. Reviewers enforce the rest of the rule.
+  public-content:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Title, description and SHAs come from the event file, not `env:`, which the log would print.
+      - name: No client names
+        env:
+          DENYLIST: ${{ secrets.PUBLIC_DENYLIST }}
+        run: |
+          [ -n "$DENYLIST" ] || { echo "::error::The PUBLIC_DENYLIST secret is not available to this run."; exit 1; }
+          # Runs a search: returns 0 (found) or 1 (not found); any other exit status fails the job. Its error
+          # output is dropped because it could quote a file name.
+          hit() { local rc=0; "$@" 2> /dev/null || rc=$?; [ "$rc" -le 1 ] || { echo "::error::A search failed (exit $rc)."; exit 1; }; return "$rc"; }
+          hit grep -qiE -e "$DENYLIST" < /dev/null || :   # an invalid expression stops the job here
+          repo='client-[A-Z][A-Za-z0-9]*'   # case-sensitive: "client-side" is fine
+          named() { hit grep -qE -e "$repo" <<< "$1" || hit grep -qiE -e "$DENYLIST" <<< "$1"; }
+          found=0
+          names=$(git -c core.quotePath=false ls-files)
+          named "$names" && { echo "a file name"; found=1; }
+          hit git grep -qIE -e "$repo" && { echo "file contents (client-<Name>)"; found=1; }
+          hit git grep -qIiE -e "$DENYLIST" && { echo "file contents"; found=1; }
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            base=$(jq -r .pull_request.base.sha "$GITHUB_EVENT_PATH")
+            head=$(jq -r .pull_request.head.sha "$GITHUB_EVENT_PATH")
+            text=$(jq -r .pull_request.title "$GITHUB_EVENT_PATH")
+            named "$text" && { echo "pull request title"; found=1; }
+            text=$(jq -r '.pull_request.body // ""' "$GITHUB_EVENT_PATH")
+            named "$text" && { echo "pull request description"; found=1; }
+            named "$GITHUB_HEAD_REF" && { echo "branch name"; found=1; }
+          else
+            base=$(jq -r .before "$GITHUB_EVENT_PATH")
+            head=$(jq -r .after "$GITHUB_EVENT_PATH")
+          fi
+          commits=$(git rev-list "$base..$head")
+          for c in $commits; do
+            text=$(git log -1 --format=%B "$c")
+            named "$text" && { echo "commit message of $c"; found=1; }
+          done
+          # What the new commits add, lines and the names of new files: a file added and then deleted stays
+          # public in the history. What they inherit from older commits isn't checked again.
+          range() { git -c core.quotePath=false log --format= --no-renames --diff-merges=first-parent "$@" "$base..$head"; }
+          added=$(range -p)
+          files=$(range --name-only --diff-filter=A)
+          text=$(sed -n '/^+/p' <<< "$added")
+          named "$text"$'\n'"$files" && { echo "something the new commits add"; found=1; }
+          if [ "$found" = 1 ]; then
+            echo "::error::A client is named in the places above. This repository is public: remove it (anything in an earlier commit needs the branch rewritten and force-pushed)."
+            exit 1
+          fi
+          echo "No client names in $(wc -w <<< "$commits") commit(s), the files or their names."
+
   # The one check the ruleset requires. Add every new job above to `needs`.
   ci-ok:
     if: always()
-    needs: [workflows, python, python-postgres, node, container, scripts, scripts-none, secrets]
+    needs: [workflows, python, python-postgres, node, container, scripts, scripts-none, secrets, public-content]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

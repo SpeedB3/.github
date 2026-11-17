@@ -6,7 +6,7 @@
 #
 #   jobs:
 #     image:
-#       needs: [backend]
+#       needs: [backend, secrets]
 #       permissions:
 #         contents: read
 #         packages: write

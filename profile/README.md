@@ -1,33 +1,35 @@
 # SpeedB3
 
-This organisation holds the team's project repositories, the actual delivery work, whether for a client or for ourselves, and two shared repositories: `team-vaults` for everything reusable and `.github` for the profile and shared CI/CD. Each project repo is scoped to one project and carries its own context, code, and documentation.
+This organisation holds the team's project repositories (the actual delivery work, whether for a client or for ourselves) and the team vaults, the shared repositories for everything reusable. Each project repo is scoped to one project and carries its own context, code, and documentation.
 
-## team-vaults
+## Team vaults
 
-[team-vaults](https://github.com/SpeedB3/team-vaults) is the team's library of client-agnostic assets: things we build once and carry from one engagement to the next. One repository, one folder per vault:
+The team vaults are the team's libraries of client-agnostic assets: things we build once and carry from one engagement to the next. There is one repository per kind of asset, all named `team-vault-<kind>`:
 
-| Folder | What it holds |
+| Vault | What it holds |
 |---|---|
-| `tech/` | Technical assets: tools, scripts, automation, Claude Code skills, configuration baselines, reference implementations. `tech/skills/custom/` holds the skills we wrote (`deep-review`, an exhaustive multi-agent code review loop; `python-standards`, the house standard for Python tooling with an audit script; `vault-authoring`, the standard every skill and prompt in the vault follows); `tech/skills/public/` holds third-party skills we use, vendored at a pinned commit with their licence. |
-| `strategy/` | Strategy and advisory assets: frameworks, analysis methods, playbooks, templates, workshop formats, and skills for strategy work. |
+| [team-vault-skills](https://github.com/SpeedB3/team-vault-skills) | Skills, standards and frameworks, in two folders. `tech/` holds tools, scripts, automation, Claude Code skills, configuration baselines and reference implementations. `tech/skills/custom/` has the skills we wrote: `deep-review` (an exhaustive multi-agent code review loop), `python-standards` (the house standard for Python tooling, with an audit script) and `vault-authoring` (the standard every skill and prompt in the vault follows). `tech/skills/public/` has third-party skills, vendored at a pinned commit with their licence. `strategy/` holds frameworks, analysis methods, playbooks, workshop formats and skills for strategy work. |
+| [team-vault-templates](https://github.com/SpeedB3/team-vault-templates) | Project templates: reference pipelines, architectures and starter kits we generalise from one engagement and start the next one from. One top-level folder per template; the first is `document-case-pipeline` (sort, check and report on a package of documents for a case, then draft outputs for a person to approve). |
 
-Conventions inside `team-vaults`:
+Conventions for the vaults:
 
-- A vault is a top-level folder with its own README saying what belongs in it; the root README lists the vaults. A new kind of asset gets a folder inside the vault it serves, never a new repository.
-- Skills are split by origin: `skills/custom/` for ours (each with a `SKILL.md`, a `CHANGELOG.md` and evals), `skills/public/` for copies of other people's, kept verbatim with their licence and the commit they were taken from.
-- Per-language standards are skills named `<stack>-standards` (`python-standards` first; `typescript-standards`, `go-standards` and so on follow the same shape), and `deep-review` picks up any of them that is installed.
-- Nothing in a vault is client-specific. If something built in a project here turns out to be reusable, strip the project-specific parts and move it to the vault.
+- A new **kind** of asset that doesn't fit an existing vault gets its own `team-vault-<kind>` repository. A new asset of an existing kind goes into that vault.
+- **Skills are split by origin.** `skills/custom/` is for ours, each with a `SKILL.md`, a `CHANGELOG.md` and evals. `skills/public/` is for copies of other people's skills, kept verbatim with their licence and the commit they were taken from.
+- **Per-language standards are skills named `<stack>-standards`.** `python-standards` is the first; `typescript-standards`, `go-standards` and so on follow the same shape. `deep-review` picks up any of them that is installed.
+- **Templates are one folder per template**, named after what they do, never after a client.
+- **Nothing in a vault is client-specific.** If something built in a project turns out to be reusable, strip the project-specific parts and move it to the right vault.
 
 ## Naming convention
 
-Every repository name starts with a prefix that says who the project is for:
+Every repository name starts with a prefix that says what it is:
 
 | Prefix | Use for | Example |
 |---|---|---|
 | `internal-` | Internal projects: tools, accelerators, and R&D we build for ourselves | `internal-GenAIFinOps` |
-| `client-` | Client projects: delivery work for a specific client engagement | `client-AcmeDataPlatform` |
+| `client-` | Client projects: delivery work for a specific client engagement | `client-<ProjectName>` |
+| `team-vault-` | Team vaults: shared, client-agnostic libraries, one per kind of asset | `team-vault-skills` |
 
-After the prefix, use a short descriptive name in PascalCase, without spaces or extra hyphens. `team-vaults` and `.github` are the only repositories without a prefix: they are shared infrastructure, not projects (`.github` is the name GitHub requires for the organisation profile and the starter workflow templates).
+For projects, the prefix is followed by a short descriptive name in PascalCase, without spaces or extra hyphens. For vaults, it is followed by the kind of asset in lowercase kebab-case (`skills`, `templates`). `.github` has no prefix: it is the organisation's profile and shared configuration. A fork keeps its upstream name.
 
 ## README requirements
 
@@ -47,14 +49,18 @@ Setup instructions, documentation maps, and anything else follow after these. A 
 - One project per repository. Do not mix client work and internal work in the same repo.
 - Client repos must be private and contain nothing from another client.
 - No credentials, tokens, or secrets in any repo. Use `.env` files that are gitignored.
+- This `.github` repository is public, and so are its commit messages, branch names, pull requests and comments. None of them names a client, a client repository or an engagement, or says how a client repository is protected. Write "client repositories" instead; the details stay in the private repositories. CI blocks known client names on every pull request; reviewers check the rest.
 - Every repo has a README that meets the requirements above and explains how to set the project up and where the documentation lives.
 
 ## Repositories
 
 | Repository | What it is |
 |---|---|
-| [team-vaults](https://github.com/SpeedB3/team-vaults) | The shared library of reusable assets described above. |
+| [team-vault-skills](https://github.com/SpeedB3/team-vault-skills) | Vault: skills, standards and frameworks (see above). |
+| [team-vault-templates](https://github.com/SpeedB3/team-vault-templates) | Vault: project templates (see above). |
 | [internal-GenAIFinOps](https://github.com/SpeedB3/internal-GenAIFinOps) | AI Cost Optimizer: what a client pays for AI today and what a different LLM offering would save, ranked on cost, task fit, speed and uptime. |
 | [internal-MigrationFinOps](https://github.com/SpeedB3/internal-MigrationFinOps) | `agent-migrate`: a platform for migrating AI agents between agentic platforms, mostly automatic, verified by evaluation, explicit about where a human must act. |
 | [internal-teamWorkflowAutomation](https://github.com/SpeedB3/internal-teamWorkflowAutomation) | Files Teams meeting transcripts into Notion with a Claude-written summary and opens the Linear follow-up ticket. |
 | [.github](https://github.com/SpeedB3/.github) | This profile, the README template, and the shared CI/CD and merge rules every repository uses ([CI.md](https://github.com/SpeedB3/.github/blob/main/CI.md)). |
+
+Client repositories are private and are not listed here.
