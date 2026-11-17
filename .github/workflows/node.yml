@@ -20,10 +20,11 @@ on:
         type: string
         default: "."
       node-version:
+        description: Node.js version for actions/setup-node.
         type: string
         default: "24"
       scripts:
-        description: Space-separated npm scripts to run, in order.
+        description: Whitespace-separated (spaces or newlines) npm scripts to run, in order.
         type: string
         default: "lint typecheck test build"
       audit-level:
@@ -31,6 +32,7 @@ on:
         type: string
         default: high
       timeout-minutes:
+        description: Job timeout in minutes.
         type: number
         default: 15
 
@@ -68,7 +70,7 @@ jobs:
         env:
           SCRIPTS: ${{ inputs.scripts }}
         run: |
-          read -ra scripts <<< "$SCRIPTS"
+          read -r -d '' -a scripts <<< "$SCRIPTS" || true
           for script in "${scripts[@]}"; do
             echo "::group::npm run $script"
             npm run "$script"
