@@ -5,6 +5,21 @@ Every SpeedB3 repository runs the same pipeline. The pipeline lives here as
 has only a short `.github/workflows/ci.yml` that calls them. A fix made here reaches every repository on
 its next run. What isn't built yet, and why, is in [future_step.md](future_step.md).
 
+This repository is public, and so are its commit messages, branch names, pull requests and comments. Keep
+client names, client repository names, engagement details and how a client repository is protected out of all
+of them (profile, "Ground rules"). The `public-content` job checks pull requests (again when the title or
+description is edited) and pushes to `main`: file contents and names, commit messages, and the title,
+description and branch name. It fails on any `client-<Name>` and on the names in the `PUBLIC_DENYLIST` secret, a
+case-insensitive extended regular expression kept as a secret so the list isn't published, and its log never
+shows a matched name. It can't see comments, and it runs only after a branch is pushed, so check before pushing.
+Add each new client to the secret, for both Actions and Dependabot (whose pull requests can't read Actions
+secrets); `gh` asks for the value:
+
+```
+gh secret set PUBLIC_DENYLIST --repo SpeedB3/.github --app actions
+gh secret set PUBLIC_DENYLIST --repo SpeedB3/.github --app dependabot
+```
+
 | Workflow | Language | What it does |
 |---|---|---|
 | [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, pip-audit of the runtime dependencies (`audit: false` turns it off), ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff and pytest must be dev dependencies, and pyright too unless `pyright: false`. |
@@ -33,6 +48,7 @@ run over this repository itself):
 | `scripts` | `tests/scripts` | shellcheck, PSScriptAnalyzer, py_compile and ruff on the fixture files, the self-test under a non-default `python-version`, and that `exclude` skips a deliberately broken file (each job's log lists the files it checked), and each job's file count (asserted by `ci-ok`) |
 | `scripts-none` | none (`exclude: "*"`) | a repository with no loose scripts passes and checks nothing (its three file counts, asserted by `ci-ok`, are 0) |
 | `secrets` | this repository | gitleaks over the history of the checked-out commit |
+| `public-content` | this repository | no client named in its files, file names, commit messages, or a pull request's title, description or branch name (above) |
 | `ci-ok` | none | fails when any job above failed, was cancelled or was skipped, when the `scripts` job reported a missing or zero file count, when `scripts-none` checked any file, or when the `workflows` job reported no ci-ok workflow |
 
 Move `v1` only when this CI is green on `main`.

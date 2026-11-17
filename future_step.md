@@ -39,13 +39,7 @@ pipeline works is in [CI.md](CI.md).
 - **When:** with each repository's first code. Apply `repo-default.json` only after its `ci.yml` with
   `ci-ok` has merged, or every pull request waits for a check that never runs.
 - **Why:** until then, nothing checks the code.
-- **Status:**
-  - client-VentureWorkflowAutomation and client-MizuhoWorkflowAutomation: `CODEOWNERS` and a review-only
-    ruleset; no `ci.yml` yet.
-  - client-OCBCCopywritingAssistant: a `ci.yml` (actionlint); no ruleset yet, and the `devs` team has no
-    access, so its `CODEOWNERS` line is ignored.
-  - chilliclaw: a fork with its own branches (`stable`, `main`); no ruleset and no `CODEOWNERS`. Agree the
-    protected branch with its owner first.
+- **Status:** kept in each client repository, not here, because this repository is public.
 - **Holding it back:** a client may have its own approvers or pipeline rules. Ask before copying ours.
 
 ## 4. Automatic updates of the hand-pinned tools
