@@ -29,7 +29,7 @@ Every repository name starts with a prefix that says what it is:
 | `client-` | Client projects: delivery work for a specific client engagement | `client-AcmeDataPlatform` |
 | `team-vault-` | Team vaults: shared, client-agnostic libraries, one per kind of asset | `team-vault-skills` |
 
-For projects, the prefix is followed by a short descriptive name in PascalCase, without spaces or extra hyphens. For vaults, it is followed by the kind of asset in lowercase kebab-case (`skills`, `templates`). `.github` is the only repository without a prefix: it is the organisation's profile and shared configuration.
+For projects, the prefix is followed by a short descriptive name in PascalCase, without spaces or extra hyphens. For vaults, it is followed by the kind of asset in lowercase kebab-case (`skills`, `templates`). `.github` has no prefix: it is the organisation's profile and shared configuration. The two other exceptions are marked in the table below.
 
 ## README requirements
 
@@ -59,7 +59,9 @@ Setup instructions, documentation maps, and anything else follow after these. A 
 | [team-vault-templates](https://github.com/SpeedB3/team-vault-templates) | Vault: project templates (see above). |
 | [client-VentureWorkflowAutomation](https://github.com/SpeedB3/client-VentureWorkflowAutomation) | Venture: AI-assisted intake of customer RFQ packages. It unpacks, classifies into Venture's folders, links drawings to BOM lines, checks completeness and reports the gaps. |
 | [client-MizuhoWorkflowAutomation](https://github.com/SpeedB3/client-MizuhoWorkflowAutomation) | Mizuho Bank: AI support for credit documentation. Triage of credit files with a gap report, then CP checklist, admin card, submission pack and agreement drafting. |
+| [client-OCBCCopywritingAssistant](https://github.com/SpeedB3/client-OCBCCopywritingAssistant) | OCBC Bank: private, fully local AI copywriting assistant for the CX team. Drafts from a brief, grounded on OCBC's guidelines and fact sheets, with guideline checks; runs on one air-gapped Mac. |
 | [chilliclaw](https://github.com/SpeedB3/chilliclaw) | Fork of pragnition/chilliclaw for the NIPSEA Compliance Agent build. It keeps the upstream name, so it falls outside the prefix convention. |
+| [nipsea-delivery](https://github.com/SpeedB3/nipsea-delivery) | NIPSEA Group: the delivery workspace for the Market Intelligence and Compliance agents built on ChilliClaw. Its name falls outside the prefix convention. |
 | [internal-GenAIFinOps](https://github.com/SpeedB3/internal-GenAIFinOps) | AI Cost Optimizer: what a client pays for AI today and what a different LLM offering would save, ranked on cost, task fit, speed and uptime. |
 | [internal-MigrationFinOps](https://github.com/SpeedB3/internal-MigrationFinOps) | `agent-migrate`: a platform for migrating AI agents between agentic platforms, mostly automatic, verified by evaluation, explicit about where a human must act. |
 | [internal-teamWorkflowAutomation](https://github.com/SpeedB3/internal-teamWorkflowAutomation) | Files Teams meeting transcripts into Notion with a Claude-written summary and opens the Linear follow-up ticket. |
