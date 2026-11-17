@@ -33,7 +33,7 @@ run over this repository itself):
 | `scripts` | `tests/scripts` | shellcheck, PSScriptAnalyzer, py_compile and ruff on the fixture files, the self-test under a non-default `python-version`, and that `exclude` skips a deliberately broken file (each job's log lists the files it checked), and each job's file count (asserted by `ci-ok`) |
 | `scripts-none` | none (`exclude: "*"`) | a repository with no loose scripts passes and checks nothing (its three file counts, asserted by `ci-ok`, are 0) |
 | `secrets` | this repository | gitleaks over the history of the checked-out commit |
-| `ci-ok` | none | fails when any job above failed or was cancelled, when the `scripts` job reported a missing or zero file count, when `scripts-none` checked any file, or when the `workflows` job reported no ci-ok workflow |
+| `ci-ok` | none | fails when any job above failed, was cancelled or was skipped, when the `scripts` job reported a missing or zero file count, when `scripts-none` checked any file, or when the `workflows` job reported no ci-ok workflow |
 
 Move `v1` only when this CI is green on `main`.
 
@@ -53,7 +53,9 @@ From the repository on GitHub, go to **Actions → New workflow** and pick **Spe
 The rows describe each `ci.yml` once its CI pull request (ci-ok gate, secret scan, Dependabot) has merged.
 
 Every `ci.yml` ends with a `ci-ok` job that `needs` all the others and runs with `if: always()`. It is the only
-check the ruleset requires, so a new job must be added to its `needs` list, or it isn't enforced. Then add the
+check the ruleset requires, so a new job must be added to its `needs` list, or it isn't enforced. It fails
+when a job failed, was cancelled or was skipped. No check notices a job that is removed together with its
+`needs` entry, or a changed `ci-ok` step, so a reviewer reads every change to `ci.yml` for that. Then add the
 repository's `CODEOWNERS`, ruleset (below) and `.github/dependabot.yml`.
 
 ## Merging into main
