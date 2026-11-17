@@ -1,12 +1,13 @@
 # CI from the shared SpeedB3 workflows (SpeedB3/.github, docs in CI.md there).
 # Keep the jobs your repository needs and delete the rest. Then add .github/CODEOWNERS and the
-# repository's ruleset (CI.md, "Merging into main").
+# ruleset and dependabot.yml (CI.md, "Add CI to a repository").
 
 name: CI
 
 on:
   push:
     branches: [$default-branch]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -34,6 +35,37 @@ jobs:
 
   scripts:
     uses: SpeedB3/.github/.github/workflows/scripts.yml@v1
+    # with:
+    #   exclude: backend/*.py   # a uv project's Python files; python-uv.yml checks them with its own config (CI.md)
 
   workflows:
     uses: SpeedB3/.github/.github/workflows/actionlint.yml@v1
+
+  # Builds the Dockerfile and publishes the image to GHCR on pushes to the default branch and v* tags.
+  # image:
+  #   needs: [python]
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   uses: SpeedB3/.github/.github/workflows/container.yml@v1
+  #   with:
+  #     image: <image-name>
+  #     context: .
+
+  secrets:
+    uses: SpeedB3/.github/.github/workflows/secrets.yml@v1
+
+  # The one check the ruleset requires (rulesets/repo-default.json). Keep `needs` in step with the jobs
+  # above (add `image` if you enable it).
+  ci-ok:
+    if: always()
+    needs: [python, frontend, scripts, workflows, secrets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1 ;; esac

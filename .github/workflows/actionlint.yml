@@ -1,4 +1,6 @@
-# Reusable check of the calling repository's workflow files with actionlint (and shellcheck).
+# Reusable check of the calling repository's workflow files with actionlint (and shellcheck),
+# including the starter workflows in workflow-templates/ when that folder exists. It also checks
+# that a `ci-ok` job needs every other job of its workflow and runs with `if: always()`.
 #
 #   jobs:
 #     workflows:
@@ -10,6 +12,10 @@ name: Lint workflows
 
 on:
   workflow_call:
+    outputs:
+      ci-ok-workflows:
+        description: Number of workflow files in which the ci-ok check found a ci-ok job
+        value: ${{ jobs.actionlint.outputs.ci-ok-workflows }}
 
 permissions:
   contents: read
@@ -18,12 +24,51 @@ jobs:
   actionlint:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      ci-ok-workflows: ${{ steps.ci-ok-check.outputs.ci-ok-workflows }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # actionlint is pinned (download-script commit and version argument in this step's run: block); the
+      # shellcheck it runs on run: blocks and the yq of the next step come from the runner image.
       - name: actionlint
         run: |
-          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
-          ./actionlint -color
+          command -v shellcheck >/dev/null || { echo '::error::shellcheck not found on the runner'; exit 1; }
+          curl -sSfL -o "$RUNNER_TEMP/download-actionlint.bash" https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash
+          bash "$RUNNER_TEMP/download-actionlint.bash" 1.7.12
+          shopt -s nullglob
+          files=(.github/workflows/*.yml .github/workflows/*.yaml workflow-templates/*.yml workflow-templates/*.yaml)
+          ./actionlint -color "${files[@]}"
+
+      # ci-ok is the only check the rulesets require, so a job missing from its needs is never enforced,
+      # and a ci-ok without exactly if: always() is skipped (which counts as passing) when a job fails or the run is cancelled.
+      - name: ci-ok needs every job and runs always
+        id: ci-ok-check
+        run: |
+          command -v yq >/dev/null || { echo '::error::yq not found on the runner'; exit 1; }
+          status=0
+          checked=0
+          re='^[[:space:]]*(\$\{\{[[:space:]]*)?always\(\)([[:space:]]*\}\})?[[:space:]]*$'
+          shopt -s nullglob
+          files=(.github/workflows/*.yml .github/workflows/*.yaml workflow-templates/*.yml workflow-templates/*.yaml)
+          for f in "${files[@]}"; do
+            has=$(yq '.jobs | has("ci-ok")' "$f")
+            [ "$has" = "true" ] || continue
+            checked=$((checked + 1))
+            jobs=$(yq '.jobs | keys | .[]' "$f")
+            needs=$(yq '[.jobs."ci-ok".needs] | flatten | .[]' "$f")
+            missing=$(comm -23 <(grep -vx 'ci-ok' <<< "$jobs" | sort) <(sort <<< "$needs"))
+            if [ -n "$missing" ]; then
+              echo "::error file=$f::ci-ok does not need: $(echo "$missing" | tr '\n' ' ')"
+              status=1
+            fi
+            cond=$(yq '.jobs."ci-ok"."if" // ""' "$f")
+            if ! [[ $cond =~ $re ]]; then
+              echo "::error file=$f::ci-ok must run with exactly if: always() (found: ${cond:-none}), or a failed or cancelled job skips it and the required check passes"
+              status=1
+            fi
+          done
+          echo "ci-ok-workflows=$checked" >> "$GITHUB_OUTPUT"
+          exit "$status"
