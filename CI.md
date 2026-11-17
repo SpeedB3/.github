@@ -8,10 +8,11 @@ its next run. What isn't built yet, and why, is in [future_step.md](future_step.
 This repository is public, and so are its commit messages, branch names, pull requests and comments. Keep
 client names, client repository names, engagement details and how a client repository is protected out of all
 of them (profile, "Ground rules"). The `public-content` job checks pull requests (again when the title or
-description is edited) and pushes to `main`: file contents and names, commit messages, and the title,
-description and branch name. It fails on any `client-<Name>` and on the names in the `PUBLIC_DENYLIST` secret, a
-case-insensitive extended regular expression kept as a secret so the list isn't published, and its log never
-shows a matched name. It can't see comments, and it runs only after a branch is pushed, so check before pushing.
+description is edited) and pushes to `main`: the files and file names, what every new commit adds, commit
+messages, and the title, description and branch name. It fails on any `client-<Name>` and on the names in
+the `PUBLIC_DENYLIST` secret, a case-insensitive extended regular expression kept as a secret so the list
+isn't published, and its log never shows a matched name. It can't see comments, and it runs only after a
+branch is pushed, so check before pushing.
 Add each new client to the secret, for both Actions and Dependabot (whose pull requests can't read Actions
 secrets); `gh` asks for the value:
 
@@ -90,7 +91,7 @@ Force pushes to `main` and deleting it are blocked. There is no bypass, includin
 owners. To change who can approve, change the team's members, or edit `CODEOWNERS` in a pull request
 (which itself needs an approval).
 
-Every repository has the same ruleset, [`rulesets/repo-default.json`](rulesets/repo-default.json). It
+Each repository gets the same ruleset, [`rulesets/repo-default.json`](rulesets/repo-default.json). It
 requires the single check `ci-ok`, so it doesn't change when jobs are added or renamed. A repository admin
 applies it once, and updates it with `PUT` to `repos/SpeedB3/<repo>/rulesets/<id>`. Find the id with
 `gh api repos/SpeedB3/<repo>/rulesets`.
@@ -132,7 +133,7 @@ Only repository admins can create, move or delete a `v*` tag here (tag ruleset
 points at. Admins can change rulesets anyway, so the bypass gives them nothing new.
 
 A breaking change, such as a renamed input or output, or a new required input, gets `v2`. Repositories then
-move over one at a time. A renamed job is not breaking for the rulesets, which require only `ci-ok`. A new
+move over one at a time. A renamed job is not breaking for a repository whose ruleset requires only `ci-ok`. A new
 check that can fail on existing code (for example a stricter tool version) is not breaking either, but run
 each caller against the branch before moving `v1`. Third-party actions are pinned by commit SHA, with the
 version in a comment. Dependabot proposes their updates every week. Seven tool versions sit in `run:` lines,

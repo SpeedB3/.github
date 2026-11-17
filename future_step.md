@@ -11,13 +11,12 @@ pipeline works is in [CI.md](CI.md).
 - **When:** when a repository first gets a hosting target and an owner for it.
 - **Why:** a release would reach its target without manual steps, and only from `main` or a tag.
 - **Holding it back:**
-  - **No target.** No repository has one today:
+  - **No target.** None of these has one today:
     - GenAIFinOps lists deployment as out of scope;
     - MigrationFinOps runs locally;
     - teamWorkflowAutomation runs as a scheduled workflow from `main` (paused until its secrets are set);
     - team-vault-skills ships skills as releases (its own `release.yml`, still waiting for a pull request);
     - team-vault-templates holds templates, with nothing to deploy;
-    - the client repositories have no code or no hosting target yet.
   - **No approval step before a deploy.** Required reviewers on an environment need GitHub Enterprise for
     private repositories. The SpeedB3 Team plan only limits an environment to certain branches.
   - **Logins change.** An environment changes the OIDC subject, so every federated credential must be
@@ -36,9 +35,9 @@ pipeline works is in [CI.md](CI.md).
 
 - **What:** in each client repository, a `ci.yml` from the starter workflow (with `ci-ok`), then
   [`rulesets/repo-default.json`](rulesets/repo-default.json), and a `.github/dependabot.yml`.
-- **When:** with each repository's first code. Apply `repo-default.json` only after its `ci.yml` with
+- **When:** when each repository is ready for it. Apply `repo-default.json` only after its `ci.yml` with
   `ci-ok` has merged, or every pull request waits for a check that never runs.
-- **Why:** until then, nothing checks the code.
+- **Why:** their pull requests get the same checks as ours.
 - **Status:** kept in each client repository, not here, because this repository is public.
 - **Holding it back:** a client may have its own approvers or pipeline rules. Ask before copying ours.
 
@@ -66,4 +65,4 @@ pipeline works is in [CI.md](CI.md).
 | Merge queue | Few pull requests, and they rarely conflict. Every `ci.yml` would also need a `merge_group` trigger. |
 | Required signed commits | Every member would have to set up signing keys first. Code-owner review already shows who changed what. |
 | Coverage threshold | A number invites tests written to hit it. Reviewers judge the tests instead. |
-| pip-audit failing when no dependency is pinned with `==` | Today the step passes with "No runtime dependencies" if every runtime dependency is a URL or git reference. No repository does that; revisit if one does. |
+| pip-audit failing when no dependency is pinned with `==` | Today the step passes with "No runtime dependencies" if every runtime dependency is a URL or git reference. Revisit if a repository relies on that. |

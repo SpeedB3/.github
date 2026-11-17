@@ -100,13 +100,14 @@ jobs:
           DENYLIST: ${{ secrets.PUBLIC_DENYLIST }}
         run: |
           [ -n "$DENYLIST" ] || { echo "::error::The PUBLIC_DENYLIST secret is not available to this run."; exit 1; }
-          # Runs a search: returns 0 (found) or 1 (not found); any other exit status fails the job.
-          hit() { local rc=0; "$@" || rc=$?; [ "$rc" -le 1 ] || { echo "::error::A search failed (exit $rc)."; exit 1; }; return "$rc"; }
+          # Runs a search: returns 0 (found) or 1 (not found); any other exit status fails the job. Its error
+          # output is dropped because it could quote a file name.
+          hit() { local rc=0; "$@" 2> /dev/null || rc=$?; [ "$rc" -le 1 ] || { echo "::error::A search failed (exit $rc)."; exit 1; }; return "$rc"; }
           hit grep -qiE -e "$DENYLIST" < /dev/null || :   # an invalid expression stops the job here
           repo='client-[A-Z][A-Za-z0-9]*'   # case-sensitive: "client-side" is fine
           named() { hit grep -qE -e "$repo" <<< "$1" || hit grep -qiE -e "$DENYLIST" <<< "$1"; }
           found=0
-          names=$(git ls-files)
+          names=$(git -c core.quotePath=false ls-files)
           named "$names" && { echo "a file name"; found=1; }
           hit git grep -qIE -e "$repo" && { echo "file contents (client-<Name>)"; found=1; }
           hit git grep -qIiE -e "$DENYLIST" && { echo "file contents"; found=1; }
@@ -127,8 +128,15 @@ jobs:
             text=$(git log -1 --format=%B "$c")
             named "$text" && { echo "commit message of $c"; found=1; }
           done
+          # What the new commits add, lines and the names of new files: a file added and then deleted stays
+          # public in the history. What they inherit from older commits isn't checked again.
+          range() { git -c core.quotePath=false log --format= --no-renames --diff-merges=first-parent "$@" "$base..$head"; }
+          added=$(range -p)
+          files=$(range --name-only --diff-filter=A)
+          text=$(sed -n '/^+/p' <<< "$added")
+          named "$text"$'\n'"$files" && { echo "something the new commits add"; found=1; }
           if [ "$found" = 1 ]; then
-            echo "::error::A client is named in the places above. This repository is public: remove it (a commit message needs the branch rewritten and force-pushed)."
+            echo "::error::A client is named in the places above. This repository is public: remove it (anything in an earlier commit needs the branch rewritten and force-pushed)."
             exit 1
           fi
           echo "No client names in $(wc -w <<< "$commits") commit(s), the files or their names."
