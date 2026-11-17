@@ -72,3 +72,4 @@ pipeline works is in [CI.md](CI.md).
 | Merge queue | Few pull requests, and they rarely conflict. Every `ci.yml` would also need a `merge_group` trigger. |
 | Required signed commits | Every member would have to set up signing keys first. Code-owner review already shows who changed what. |
 | Coverage threshold | A number invites tests written to hit it. Reviewers judge the tests instead. |
+| pip-audit failing when no dependency is pinned with `==` | Today the step passes with "No runtime dependencies" if every runtime dependency is a URL or git reference. No repository does that; revisit if one does. |

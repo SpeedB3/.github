@@ -48,7 +48,7 @@ From the repository on GitHub, go to **Actions → New workflow** and pick **Spe
 | internal-MigrationFinOps | python (PostgreSQL 18, `-n auto`, schema and ledger checks), workbench, workflows, secrets |
 | internal-teamWorkflowAutomation | python, scripts (`scripts/*.ps1`), workflows, secrets (the poll workflows stay repo-specific) |
 | team-vault-skills | scripts (Python, shell, PowerShell; evals and templates skipped), workflows, secrets |
-| team-vault-templates | scripts (Python, shell, PowerShell; scaffolds and fixtures skipped), workflows |
+| team-vault-templates | scripts (Python, shell, PowerShell; scaffolds and fixtures skipped), workflows, secrets |
 
 The rows describe each `ci.yml` once its CI pull request (ci-ok gate, secret scan, Dependabot) has merged.
 
@@ -68,7 +68,7 @@ merges only when:
   repository, or GitHub ignores the line. A code owner can't approve their own pull request, so the team
   keeps at least two members. A new push after the approval needs a new approval.
 - every review thread is resolved;
-- `ci-ok` passes, which means every CI job passed. Only GitHub Actions can report it.
+- `ci-ok` passes, which means every job in its `needs` list succeeded. Only GitHub Actions can report it.
 
 Force pushes to `main` and deleting it are blocked. There is no bypass, including for organisation
 owners. To change who can approve, change the team's members, or edit `CODEOWNERS` in a pull request
@@ -110,6 +110,10 @@ Callers use `@v1`. `v1` is a tag that moves forward for compatible changes:
 ```
 git tag -f v1 && git push -f origin v1
 ```
+
+Only repository admins can create, move or delete a `v*` tag here (tag ruleset
+[`rulesets/dot-github-tags.json`](rulesets/dot-github-tags.json)), because every caller runs whatever `v1`
+points at. Admins can change rulesets anyway, so the bypass gives them nothing new.
 
 A breaking change, such as a renamed input or output, or a new required input, gets `v2`. Repositories then
 move over one at a time. A renamed job is not breaking for the rulesets, which require only `ci-ok`. A new
