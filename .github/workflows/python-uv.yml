@@ -133,7 +133,7 @@ jobs:
           REPOS: ${{ inputs.app-repositories }}
         run: |
           # Without a list, the token could read every repository the App is installed on.
-          if [ -z "${REPOS//[[:space:],]/}" ]; then
+          if ! printf '%s' "$REPOS" | grep -q '[A-Za-z0-9._-]'; then
             echo "::error::app-repositories is required with app-client-id."
             exit 1
           fi
