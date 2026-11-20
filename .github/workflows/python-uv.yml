@@ -13,6 +13,15 @@
 #         env: |
 #           TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/kb_test
 #
+# A dependency installed from a private repository of this organisation (a `git+https://github.com/...`
+# source in uv.lock) is read with a short-lived, read-only token of the organisation's GitHub App:
+#
+#       with:
+#         app-client-id: ${{ vars.PRIVATE_DEPS_APP_CLIENT_ID }}
+#         app-repositories: the-private-repo
+#       secrets:
+#         app-private-key: ${{ secrets.PRIVATE_DEPS_APP_PRIVATE_KEY }}
+#
 # The status check is "<caller job> / python", e.g. "backend / python".
 
 name: Python (uv)
@@ -64,6 +73,18 @@ on:
         description: Job timeout in minutes.
         type: number
         default: 20
+      app-client-id:
+        description: Client ID of the organisation GitHub App that reads private dependencies; empty for none.
+        type: string
+        default: ""
+      app-repositories:
+        description: Comma- or newline-separated repositories of this organisation the token may read (names only); required with app-client-id.
+        type: string
+        default: ""
+    secrets:
+      app-private-key:
+        description: Private key of that GitHub App (required with app-client-id).
+        required: false
 
 permissions:
   contents: read
@@ -102,6 +123,25 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
           python-version: ${{ inputs.python-version }}
 
+      # Private dependencies: a token that can only read the listed repositories, valid for about
+      # an hour and revoked when the job ends. Git then uses it for every github.com URL.
+      - name: Token for private dependencies
+        id: app-token
+        if: inputs.app-client-id != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.app-private-key }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ inputs.app-repositories }}
+          permission-contents: read
+
+      - name: Read private dependencies with that token
+        if: inputs.app-client-id != ''
+        env:
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+
       - name: Install (fails if uv.lock is out of date)
         run: uv sync --locked
 
@@ -116,6 +156,9 @@ jobs:
         run: |
           uv export --locked --format requirements-txt --no-dev --no-emit-project --no-emit-workspace \
             --quiet -o "$RUNNER_TEMP/requirements.txt"
+          # A dependency from a git repository (`name @ git+https://...`) has no version to look up;
+          # its own dependencies are listed separately and audited.
+          sed -i -E '/^[A-Za-z0-9._-]+ @ git\+/d' "$RUNNER_TEMP/requirements.txt"
           if ! grep -q '==' "$RUNNER_TEMP/requirements.txt"; then
             echo "No runtime dependencies to audit."
             exit 0
