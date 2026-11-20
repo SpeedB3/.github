@@ -23,7 +23,7 @@ gh secret set PUBLIC_DENYLIST --repo SpeedB3/.github --app dependabot
 
 | Workflow | Language | What it does |
 |---|---|---|
-| [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, pip-audit of the runtime dependencies (`audit: false` turns it off), ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff and pytest must be dev dependencies, and pyright too unless `pyright: false`. |
+| [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, pip-audit of the runtime dependencies (`audit: false` turns it off), ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff and pytest must be dev dependencies, and pyright too unless `pyright: false`. It can read dependencies from private repositories of this organisation ([below](#private-dependencies)). |
 | [`node.yml`](.github/workflows/node.yml) | TypeScript / JavaScript (npm) | `npm ci`, `npm audit` of runtime dependencies (high and above), then the package.json scripts you list. |
 | [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. With `publish: true` (the default), pushes to the default branch (`main`) and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
 | [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck (all severities), PSScriptAnalyzer (errors and parse errors). It checks every such file in the repository, so list a uv project's Python files in `exclude` (e.g. `backend/*.py`), because Ruff runs with `--isolated` and ignores the project's config. |
@@ -74,6 +74,36 @@ check the ruleset requires, so a new job must be added to its `needs` list, or i
 when a job failed, was cancelled or was skipped. No check notices a job that is removed together with its
 `needs` entry, or a changed `ci-ok` step, so a reviewer reads every change to `ci.yml` for that. Then add the
 repository's `CODEOWNERS`, ruleset (below) and `.github/dependabot.yml`.
+
+### Private dependencies
+
+A uv project can depend on a package in a private repository of this organisation
+(`name @ git+https://github.com/SpeedB3/...@tag` in `pyproject.toml`). The job's own token cannot read another
+private repository, so `python-uv.yml` gets a token from the organisation's GitHub App instead. That token can
+only read the repositories in `app-repositories` (required), only the install step gets it, and it is revoked
+when the job ends. The uv cache is off for these jobs, because a later run, a fork's included, could restore
+wheels built from the private source:
+
+```yaml
+    uses: SpeedB3/.github/.github/workflows/python-uv.yml@v1
+    with:
+      app-client-id: ${{ vars.PRIVATE_DEPS_APP_CLIENT_ID }}
+      app-repositories: the-private-repo
+    secrets:
+      app-private-key: ${{ secrets.PRIVATE_DEPS_APP_PRIVATE_KEY }}
+```
+
+Setup, once, by an organisation owner: create a GitHub App owned by the organisation with only the
+**Contents: read** repository permission and no webhook, and install it on the dependency repositories only.
+Store its client ID as the organisation variable `PRIVATE_DEPS_APP_CLIENT_ID` and a private key as the
+organisation secret `PRIVATE_DEPS_APP_PRIVATE_KEY`, available to the repositories that use it. Dependabot
+pull requests read Dependabot secrets, not Actions secrets, so add the key there too. For Dependabot to
+propose a new tag of the dependency, grant it access to that repository in the organisation's Dependabot
+settings.
+
+The audit step skips the git dependency itself (it has no version to look up). Its own dependencies are in
+the lock and are still audited. The CI of this repository does not run the token steps, because they need
+the App: the first caller's run is their test.
 
 ## Merging into main
 
