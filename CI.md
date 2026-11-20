@@ -77,10 +77,12 @@ repository's `CODEOWNERS`, ruleset (below) and `.github/dependabot.yml`.
 
 ### Private dependencies
 
-A uv project can depend on a package in a private repository of this organisation (a
-`git+https://github.com/SpeedB3/...` source, pinned to a tag). The job's own token cannot read another
+A uv project can depend on a package in a private repository of this organisation
+(`name @ git+https://github.com/SpeedB3/...@tag` in `pyproject.toml`). The job's own token cannot read another
 private repository, so `python-uv.yml` gets a token from the organisation's GitHub App instead. That token can
-only read the repositories in `app-repositories`, and it is revoked when the job ends:
+only read the repositories in `app-repositories` (required), only the install step gets it, and it is revoked
+when the job ends. The uv cache is off for these jobs, because a later run, a fork's included, could restore
+wheels built from the private source:
 
 ```yaml
     uses: SpeedB3/.github/.github/workflows/python-uv.yml@v1
