@@ -123,6 +123,9 @@ jobs:
             text=$(jq -r '.pull_request.body // ""' "$GITHUB_EVENT_PATH")
             named "$text" && { echo "pull request description"; found=1; }
             named "$GITHUB_HEAD_REF" && { echo "branch name"; found=1; }
+            # After a squash merge (ci-merged.yml) the head commits may be on no branch any more, since
+            # the merged branch can be deleted; the pull request ref keeps them.
+            git fetch -q --no-tags origin "+refs/pull/$(jq .number "$GITHUB_EVENT_PATH")/head"
           else
             base=$(jq -r .before "$GITHUB_EVENT_PATH")
             head=$(jq -r .after "$GITHUB_EVENT_PATH")

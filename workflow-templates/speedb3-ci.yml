@@ -11,6 +11,8 @@ on:
     branches: [$default-branch]
     # edited: a pull request retargeted to main runs again (its old result tested another base).
     types: [opened, synchronize, reopened, edited]
+  # The "SpeedB3 CI after merge" starter workflow calls it after a merge into another branch.
+  workflow_call:
 
 permissions:
   contents: read

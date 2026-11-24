@@ -13,8 +13,9 @@ permissions:
   contents: read
 
 concurrency:
-  # A newer merge into the same branch replaces the run of an older one.
-  group: ${{ github.workflow }}-${{ github.base_ref }}
+  # A newer merge into the same branch replaces the run of an older one. "merged" keeps this name apart
+  # from the group of the ci.yml it calls: the same name in caller and callee would deadlock.
+  group: ${{ github.workflow }}-merged-${{ github.base_ref }}
   cancel-in-progress: true
 
 jobs:
@@ -36,7 +37,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.base_ref }}
         run: |
-          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --state open --json number --jq length)
+          # --head matches the branch name only, so a fork's branch of the same name is left out.
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --state open --json isCrossRepository --jq '[.[] | select(.isCrossRepository | not)] | length')
           echo "Open pull requests from $BRANCH into main: $open"
           if [ "$open" = 0 ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
 

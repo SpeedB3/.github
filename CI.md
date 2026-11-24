@@ -12,7 +12,8 @@ description is edited): the files and file names, what every new commit adds, co
 messages, and the title, description and branch name. It fails on any `client-<Name>` and on the names in
 the `PUBLIC_DENYLIST` secret, a case-insensitive extended regular expression kept as a secret so the list
 isn't published, and its log never shows a matched name. It can't see comments, and it runs only after a
-branch is pushed, so check before pushing.
+branch is pushed, so check before pushing. A pull request into another branch is checked only once it merges
+(`ci-merged.yml`), but its commits are public from the first push, merged or not, so check those too.
 Add each new client to the secret, for both Actions and Dependabot (whose pull requests can't read Actions
 secrets); `gh` asks for the value:
 
@@ -141,12 +142,13 @@ CI runs in two cases, and never on a plain push (to `main`, another branch or a 
   request runs CI on the new commit anyway. Its checks show as `ci / ...` and are not required anywhere.
 
 A pull request into another branch gets no CI while it is open. Once its base pull request has merged, it
-is retargeted to `main` (GitHub does it when the base branch is deleted, which these repositories do on
-merge; otherwise retarget it by hand). The retarget runs CI against `main`; then update the branch, which
-runs it again on the up-to-date tree.
+is retargeted to `main` (GitHub does it when the base branch is deleted on merge, which the repository
+setting "Automatically delete head branches" does; otherwise retarget it by hand). The retarget runs CI
+against `main`; then update the branch, which runs it again on the up-to-date tree.
 
-A repository adds both files: copy `ci-merged.yml` from this repository as it is (give its `ci` job
-`packages: write` if a job of `ci.yml` asks for it), and add `workflow_call:` to the `on:` of `ci.yml`.
+A repository adds both files, from the "SpeedB3 CI" and "SpeedB3 CI after merge" starter workflows or by
+copying `ci-merged.yml` from this repository as it is (give its `ci` job `packages: write` if a job of
+`ci.yml` asks for it); `ci.yml` needs `workflow_call:` in its `on:`.
 
 Each repository gets the same ruleset, [`rulesets/repo-default.json`](rulesets/repo-default.json). It
 requires the single check `ci-ok`, so it doesn't change when jobs are added or renamed. A repository admin
