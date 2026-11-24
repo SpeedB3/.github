@@ -57,8 +57,10 @@ Move `v1` only to a commit on `main`: it passed this CI as an up-to-date pull re
 
 ## Add CI to a repository
 
-From the repository on GitHub, go to **Actions → New workflow** and pick **SpeedB3 CI** under
-"By SpeedB3". Keep the jobs you need. Or copy the `ci.yml` of a repository with the same stack:
+Every repository has the same CI rules, checked on each pull request (below, "One standard"). From the
+repository on GitHub, go to **Actions → New workflow** and add **SpeedB3 CI** and **SpeedB3 CI after
+merge** under "By SpeedB3". In SpeedB3 CI keep the language jobs your code needs and give them their
+inputs; leave the rest of both files as it is. Or copy the language jobs of a repository with the same stack:
 
 | Repository | Jobs |
 |---|---|
@@ -72,9 +74,24 @@ The rows describe each `ci.yml` once its CI pull request (ci-ok gate, secret sca
 
 Every `ci.yml` ends with a `ci-ok` job that `needs` all the others and runs with `if: always()`. It is the only
 check the ruleset requires, so a new job must be added to its `needs` list, or it isn't enforced. It fails
-when a job failed, was cancelled or was skipped. No check notices a job that is removed together with its
-`needs` entry, or a changed `ci-ok` step, so a reviewer reads every change to `ci.yml` for that. Then add the
-repository's `CODEOWNERS`, ruleset (below) and `.github/dependabot.yml`.
+when a job failed, was cancelled or was skipped. No check notices a language job that is removed together
+with its `needs` entry, so a reviewer reads every change to `ci.yml` for that. Then add the repository's
+`CODEOWNERS`, ruleset (below) and `.github/dependabot.yml`.
+
+### One standard
+
+The `workflows` job ([`actionlint.yml`](.github/workflows/actionlint.yml)) fails a pull request whose
+workflows leave the standard ([`.github/ci-standard.sh`](.github/ci-standard.sh), read from `v1`):
+
+- `ci.yml` has the starter's name, triggers, permissions and concurrency, the `workflows` and `secrets`
+  jobs and the `ci-ok` gate, word for word (only the `needs` of `ci-ok` differ), and nothing else at the
+  top level. Every other job calls a shared workflow of this repository at `@v1`, with its own inputs.
+- `ci-merged.yml` is the starter's, word for word. Its `ci` job may add `packages: write`, for an `image` job.
+- No workflow runs on `push` or `pull_request_target`. Scheduled and manual workflows are allowed.
+
+So a check of a repository's own goes into a shared workflow here, as an input every repository can
+use, not into one `ci.yml`. This repository's CI tests the script (its `standard` job), and leaves this
+repository itself out, because its CI runs the shared workflows from the commit (`./` paths).
 
 ### Private dependencies
 
@@ -191,7 +208,9 @@ pull requests" is off), so an approval always comes from a person.
 
 ## Versions
 
-Callers use `@v1`. `v1` is a tag that moves forward for compatible changes:
+Callers use `@v1`. `v1` is a tag that moves forward for compatible changes. A change to the standard (the
+starter workflows or `.github/ci-standard.sh`) moves `v1` only once every repository follows it, because
+every repository's next run checks it:
 
 ```
 git tag -f v1 && git push -f origin v1

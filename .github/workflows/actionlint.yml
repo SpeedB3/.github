@@ -1,6 +1,7 @@
 # Reusable check of the calling repository's workflow files with actionlint (and shellcheck),
 # including the starter workflows in workflow-templates/ when that folder exists. It also checks
-# that a `ci-ok` job needs every other job of its workflow and runs with `if: always()`.
+# that a `ci-ok` job needs every other job of its workflow and runs with `if: always()`, and that the
+# repository follows the SpeedB3 standard (CI.md, "One standard").
 #
 #   jobs:
 #     workflows:
@@ -72,3 +73,12 @@ jobs:
           done
           echo "ci-ok-workflows=$checked" >> "$GITHUB_OUTPUT"
           exit "$status"
+
+      # The SpeedB3 standard (CI.md, "One standard"; the checks are listed in .github/ci-standard.sh).
+      # The script and the starter workflows come from v1, the tag callers use. SpeedB3/.github is left
+      # out: its CI tests the shared workflows themselves, and the script (its standard job).
+      - name: SpeedB3 standard
+        if: github.repository != 'SpeedB3/.github'
+        run: |
+          git clone -q --depth 1 --branch v1 https://github.com/SpeedB3/.github.git "$RUNNER_TEMP/standard"
+          bash "$RUNNER_TEMP/standard/.github/ci-standard.sh" "$RUNNER_TEMP/standard/workflow-templates"
