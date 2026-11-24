@@ -159,9 +159,10 @@ owners. To change who can approve, change the team's members, or edit `CODEOWNER
 
 CI runs in two cases, and never on a plain push (to `main`, another branch or a tag):
 
-- **A pull request into `main`** (`ci.yml`): when it opens, gets a new push, is reopened, or is edited (a
-  new title, description or base branch). A merge needs the branch up to date and `ci-ok` green, so this
-  run already tested the tree that lands on `main`, and nothing runs again after the merge.
+- **A pull request into `main`** (`ci.yml`): when it opens, gets a new push, or is reopened. A merge needs
+  the branch up to date and `ci-ok` green, so this run already tested the tree that lands on `main`, and
+  nothing runs again after the merge. (This repository also runs it when a pull request is edited, to
+  check a new title or description for public content.)
 - **A merge into any other branch** (`ci-merged.yml`, which calls `ci.yml`): when a pull request into
   another branch (a stacked pull request into its parent, say) is merged, CI runs once on that branch's
   new commit. It is skipped when that branch has an open pull request into `main`, because that pull
@@ -169,8 +170,10 @@ CI runs in two cases, and never on a plain push (to `main`, another branch or a 
 
 A pull request into another branch gets no CI while it is open. Once its base pull request has merged, it
 is retargeted to `main` (GitHub does it when the base branch is deleted on merge, which the repository
-setting "Automatically delete head branches" does; otherwise retarget it by hand). The retarget runs CI
-against `main`; then update the branch, which runs it again on the up-to-date tree.
+setting "Automatically delete head branches" does; otherwise retarget it by hand). The retarget alone runs
+no CI, so there is no `ci-ok` yet and it cannot merge: update the branch, which runs CI on the up-to-date
+tree. The base was squash-merged, so its old commits are still on the branch; instead of merging `main` in,
+drop them with `git rebase --onto main <old base tip>` and force-push (the approval is then needed again).
 
 A repository adds both files, from the "SpeedB3 CI" and "SpeedB3 CI after merge" starter workflows or by
 copying `ci-merged.yml` from this repository as it is (give its `ci` job `packages: write` if a job of
