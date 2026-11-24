@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # The SpeedB3 standard (CI.md, "One standard"), checked in the repository root against the starter
-# workflows in the folder given as $1 (workflow-templates/ of SpeedB3/.github):
+# workflows in the folder given as $1 (workflow-templates/ of SpeedB3/.github), with $default-branch
+# read as the repository's default branch, $2 (main when left out):
 #   - ci.yml has the starter's name, triggers, permissions, concurrency, standard jobs (workflows,
 #     secrets) and ci-ok gate (its `needs` aside), nothing else at the top level, and every other
 #     job calls a shared workflow at @v1 with only uses, with and needs (an image job also
@@ -14,8 +15,11 @@ set -euo pipefail
 starters=${1:?usage: ci-standard.sh <workflow-templates folder>}
 command -v yq > /dev/null || { echo "::error::yq not found"; exit 1; }
 std=$(mktemp -d)
-sed 's/\$default-branch/main/g' "$starters/speedb3-ci.yml" > "$std/ci.yml"
-sed 's/\$default-branch/main/g' "$starters/speedb3-ci-merged.yml" > "$std/ci-merged.yml"
+branch=${2:-main}
+for f in ci ci-merged; do
+  t=$(< "$starters/speedb3-$f.yml")
+  printf '%s\n' "${t//\$default-branch/$branch}" > "$std/$f.yml"
+done
 
 status=0
 fail() { echo "::error file=$1::$2"; status=1; }

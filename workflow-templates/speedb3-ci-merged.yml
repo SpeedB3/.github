@@ -7,7 +7,7 @@ name: CI after merge
 on:
   pull_request:
     types: [closed]
-    branches-ignore: [main]
+    branches-ignore: [$default-branch]
 
 permissions:
   contents: read
@@ -31,15 +31,15 @@ jobs:
     outputs:
       run: ${{ steps.open.outputs.run }}
     steps:
-      - name: Open pull request into main
+      - name: Open pull request into $default-branch
         id: open
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.base_ref }}
         run: |
           # --head matches the branch name only, so a fork's branch of the same name is left out.
-          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --state open --json isCrossRepository --jq '[.[] | select(.isCrossRepository | not)] | length')
-          echo "Open pull requests from $BRANCH into main: $open"
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --base $default-branch --head "$BRANCH" --state open --json isCrossRepository --jq '[.[] | select(.isCrossRepository | not)] | length')
+          echo "Open pull requests from $BRANCH into $default-branch: $open"
           if [ "$open" = 0 ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
 
   ci:

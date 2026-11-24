@@ -79,6 +79,8 @@ jobs:
       # out: its CI tests the shared workflows themselves, and the script (its standard job).
       - name: SpeedB3 standard
         if: github.repository != 'SpeedB3/.github'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           git clone -q --depth 1 --branch v1 https://github.com/SpeedB3/.github.git "$RUNNER_TEMP/standard"
-          bash "$RUNNER_TEMP/standard/.github/ci-standard.sh" "$RUNNER_TEMP/standard/workflow-templates"
+          bash "$RUNNER_TEMP/standard/.github/ci-standard.sh" "$RUNNER_TEMP/standard/workflow-templates" "$DEFAULT_BRANCH"

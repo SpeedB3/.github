@@ -164,16 +164,25 @@ jobs:
           case_repo() {
             local dir; dir=$(mktemp -d)
             mkdir -p "$dir/.github/workflows"
-            sed 's/\$default-branch/main/g' "$starters/speedb3-ci.yml" > "$dir/.github/workflows/ci.yml"
-            sed 's/\$default-branch/main/g' "$starters/speedb3-ci-merged.yml" > "$dir/.github/workflows/ci-merged.yml"
+            local f t
+            for f in ci ci-merged; do
+              t=$(< "$starters/speedb3-$f.yml")
+              printf '%s\n' "${t//\$default-branch/${BRANCH:-main}}" > "$dir/.github/workflows/$f.yml"
+            done
             [ -z "$1" ] || yq -i "$1" "$dir/.github/workflows/ci.yml"
             [ -z "$2" ] || yq -i "$2" "$dir/.github/workflows/ci-merged.yml"
             echo "$dir"
           }
-          check() { (cd "$1" && bash "$GITHUB_WORKSPACE/.github/ci-standard.sh" "$starters" < /dev/null); }
-          check "$(case_repo "" "")"
-          check "$(case_repo "" '.jobs.ci.permissions = {"contents": "read", "packages": "write"}')"
+          check() { (cd "$1" && bash "$GITHUB_WORKSPACE/.github/ci-standard.sh" "$starters" "${2:-main}" < /dev/null); }
           status=0
+          check "$(case_repo "" "")"
+          # Another default branch: its name in both files passes, a repository still on main fails.
+          check "$(BRANCH=stable case_repo "" "")" stable
+          if check "$(case_repo "" "")" stable > /dev/null 2>&1; then
+            echo "::error::the standard check passed main where the default branch is stable"
+            status=1
+          fi
+          check "$(case_repo "" '.jobs.ci.permissions = {"contents": "read", "packages": "write"}')"
           while IFS=';' read -r name ci merged; do
             if check "$(case_repo "$ci" "$merged")" > /dev/null 2>&1; then
               echo "::error::the standard check passed a broken copy: $name"

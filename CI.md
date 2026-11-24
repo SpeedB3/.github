@@ -84,6 +84,9 @@ The `workflows` job ([`actionlint.yml`](.github/workflows/actionlint.yml)) fails
 workflows leave the standard ([`.github/ci-standard.sh`](.github/ci-standard.sh), always read from `v1`,
 whatever ref a repository calls the shared workflows with):
 
+(In a repository whose default branch isn't `main`, its name stands wherever these rules and the
+starters say `main` or `$default-branch`.)
+
 - `ci.yml` has the starter's name, triggers, permissions and concurrency, the `workflows` and `secrets`
   jobs and the `ci-ok` gate, word for word (only the `needs` of `ci-ok` differ), and nothing else at the
   top level. Every other job calls a shared workflow of this repository at `@v1` and sets only `with`
