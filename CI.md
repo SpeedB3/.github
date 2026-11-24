@@ -81,13 +81,17 @@ with its `needs` entry, so a reviewer reads every change to `ci.yml` for that. T
 ### One standard
 
 The `workflows` job ([`actionlint.yml`](.github/workflows/actionlint.yml)) fails a pull request whose
-workflows leave the standard ([`.github/ci-standard.sh`](.github/ci-standard.sh), read from `v1`):
+workflows leave the standard ([`.github/ci-standard.sh`](.github/ci-standard.sh), always read from `v1`,
+whatever ref a repository calls the shared workflows with):
 
 - `ci.yml` has the starter's name, triggers, permissions and concurrency, the `workflows` and `secrets`
   jobs and the `ci-ok` gate, word for word (only the `needs` of `ci-ok` differ), and nothing else at the
-  top level. Every other job calls a shared workflow of this repository at `@v1`, with its own inputs.
+  top level. Every other job calls a shared workflow of this repository at `@v1` and sets only `with`
+  and `needs` (an `image` job also `packages: write`). What an input runs, `extra-commands` say, is
+  left to the reviewer.
 - `ci-merged.yml` is the starter's, word for word. Its `ci` job may add `packages: write`, for an `image` job.
-- No workflow runs on `push` or `pull_request_target`. Scheduled and manual workflows are allowed.
+- No workflow runs on `push` or `pull_request_target`, and no other workflow runs on pull requests or
+  has a `ci-ok` job (the rulesets accept any job of that name). Scheduled and manual workflows are allowed.
 
 So a check of a repository's own goes into a shared workflow here, as an input every repository can
 use, not into one `ci.yml`. This repository's CI tests the script (its `standard` job), and leaves this
