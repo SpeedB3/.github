@@ -1,0 +1,51 @@
+# CI after a pull request merges into a branch other than main (for example a stacked pull request into
+# its parent): runs ci.yml on the branch's new state. Pull requests into main run ci.yml directly
+# (CI.md in SpeedB3/.github, "When CI runs").
+
+name: CI after merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # A newer merge into the same branch replaces the run of an older one.
+  group: ${{ github.workflow }}-${{ github.base_ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Runs only for a merge, and not when the branch has an open pull request into main: that pull
+  # request runs CI on the new commit anyway (merged with main).
+  check:
+    if: github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.open.outputs.run }}
+    steps:
+      - name: Open pull request into main
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.base_ref }}
+        run: |
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --state open --json number --jq length)
+          echo "Open pull requests from $BRANCH into main: $open"
+          if [ "$open" = 0 ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+
+  ci:
+    needs: check
+    if: needs.check.outputs.run == 'true'
+    # A job of ci.yml asks for packages: write (it publishes nothing here).
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit

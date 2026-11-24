@@ -6,12 +6,14 @@ name: CI
 
 on:
   # Pull requests into main only, not pushes: main must be up to date before a merge, so the
-  # pull request run tested exactly what lands (CI.md, "When CI runs").
+  # pull request run tested exactly what lands. ci-merged.yml calls it after a merge into another
+  # branch (CI.md, "When CI runs").
   pull_request:
     branches: [main]
     # edited: a changed title or description is checked again (public-content), and a pull request
     # retargeted to main runs again (its old result tested another base).
     types: [opened, synchronize, reopened, edited]
+  workflow_call:
 
 permissions:
   contents: read
