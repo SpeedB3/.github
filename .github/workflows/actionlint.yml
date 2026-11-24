@@ -33,10 +33,11 @@ jobs:
           persist-credentials: false
 
       # actionlint is pinned (download-script commit and version argument in this step's run: block); the
-      # shellcheck it runs on run: blocks and the yq of the next step come from the runner image.
+      # shellcheck it runs on run: blocks comes from the runner image, or from apt where the image has none
+      # (ubuntu-26.04, since Nov 2026); the yq of the next step comes from the runner image.
       - name: actionlint
         run: |
-          command -v shellcheck >/dev/null || { echo '::error::shellcheck not found on the runner'; exit 1; }
+          command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck; }
           curl -sSfL -o "$RUNNER_TEMP/download-actionlint.bash" https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash
           bash "$RUNNER_TEMP/download-actionlint.bash" 1.7.12
           shopt -s nullglob
