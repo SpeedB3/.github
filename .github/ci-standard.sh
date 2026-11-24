@@ -37,7 +37,7 @@ done
 [ "$(yq 'keys | sort | join(" ")' "$ci")" = "concurrency jobs name on permissions" ] \
   || fail "$ci" "only name, on, permissions, concurrency and jobs at the top level"
 own=$(yq '.jobs | to_entries | .[] | select(.key != "ci-ok")
-  | select((.value.uses // "") | test("^SpeedB3/\.github/\.github/workflows/(python-uv|node|scripts|actionlint|secrets|container)\.yml@v1$") | not) | .key' "$ci")
+  | select((.value.uses // "") | test("^SpeedB3/\.github/\.github/workflows/(python-uv|node|bun|scripts|actionlint|secrets|container)\.yml@v1$") | not) | .key' "$ci")
 [ -z "$own" ] || fail "$ci" "every job but ci-ok calls a shared workflow at @v1, not: $(echo "$own" | tr '\n' ' ')"
 # A job calling a shared workflow sets only its inputs and order; an image job (container.yml) also
 # needs packages: write.

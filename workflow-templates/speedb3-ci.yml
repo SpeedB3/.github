@@ -37,6 +37,15 @@ jobs:
       working-directory: frontend
       scripts: lint typecheck test build
 
+  # A Bun project instead (pin the version):
+  # frontend:
+  #   uses: SpeedB3/.github/.github/workflows/bun.yml@v1
+  #   with:
+  #     bun-version: "1.4.4"
+  #     commands: |
+  #       bun test
+  #       bun run build
+
   scripts:
     uses: SpeedB3/.github/.github/workflows/scripts.yml@v1
     # with:

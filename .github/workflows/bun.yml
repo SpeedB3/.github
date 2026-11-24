@@ -1,0 +1,157 @@
+# Reusable CI for a Bun project: `bun install --frozen-lockfile`, optional tools (just, Python,
+# OPA, OpenTofu), preparation commands, then the commands you list. Every command runs, also after
+# one fails; the job fails if any did.
+#
+#   jobs:
+#     static:
+#       uses: SpeedB3/.github/.github/workflows/bun.yml@v1
+#       with:
+#         bun-version: "1.4.4"
+#         just: true
+#         prepare: cp .env.example .env
+#         commands: just check
+#
+# The status check is "<caller job> / bun", e.g. "static / bun".
+
+name: Bun
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Folder that holds package.json and bun.lock.
+        type: string
+        default: "."
+      bun-version:
+        description: Bun version for oven-sh/setup-bun (pin it, e.g. "1.4.4").
+        type: string
+        required: true
+      just:
+        description: Install just (casey/just).
+        type: boolean
+        default: false
+      python-version:
+        description: Python version for actions/setup-python; empty installs none.
+        type: string
+        default: ""
+      opa-version:
+        description: Open Policy Agent version (e.g. "1.10.0"); empty installs none.
+        type: string
+        default: ""
+      tofu-version:
+        description: OpenTofu version (e.g. "1.12.2"); empty installs none.
+        type: string
+        default: ""
+      env:
+        description: Environment for the commands, one KEY=VALUE per line.
+        type: string
+        default: ""
+      prepare:
+        description: Shell commands run once before `commands`, one per line (e.g. copy .env.example, start services); the first failure stops the job.
+        type: string
+        default: ""
+      commands:
+        description: Shell commands to run, one per line, in order.
+        type: string
+        required: true
+      report:
+        description: Shell commands run at the end even when a command failed, one per line; what they print goes to the job summary.
+        type: string
+        default: ""
+      timeout-minutes:
+        description: Job timeout in minutes.
+        type: number
+        default: 25
+
+permissions:
+  contents: read
+
+jobs:
+  bun:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ inputs.bun-version }}
+
+      - if: inputs.just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+
+      - if: inputs.python-version != ''
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - if: inputs.tofu-version != ''
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: ${{ inputs.tofu-version }}
+          tofu_wrapper: false
+
+      - name: OPA
+        if: inputs.opa-version != ''
+        env:
+          OPA_VERSION: ${{ inputs.opa-version }}
+        run: |
+          curl --proto '=https' -fsSL --retry 2 -o "$RUNNER_TEMP/opa" \
+            "https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static"
+          chmod +x "$RUNNER_TEMP/opa"
+          sudo mv "$RUNNER_TEMP/opa" /usr/local/bin/opa
+          opa version
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles(format('{0}/bun.lock', inputs.working-directory)) }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      # Lifecycle scripts stay off: a dependency's install script would run with the job's token.
+      - name: Install (fails if bun.lock is out of date)
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Environment
+        if: inputs.env != ''
+        env:
+          VARS: ${{ inputs.env }}
+        run: |
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            [[ $line == *=* ]] || { echo "::error::env line without '=': ${line%%=*}"; exit 1; }
+            echo "$line" >> "$GITHUB_ENV"
+          done <<< "$VARS"
+
+      - name: Prepare
+        if: inputs.prepare != ''
+        env:
+          PREPARE: ${{ inputs.prepare }}
+        run: bash -eo pipefail -c "$PREPARE"
+
+      - name: Commands
+        env:
+          COMMANDS: ${{ inputs.commands }}
+        run: |
+          failed=()
+          while IFS= read -r cmd; do
+            [ -z "${cmd// }" ] && continue
+            echo "::group::$cmd"
+            bash -eo pipefail -c "$cmd" < /dev/null || failed+=("$cmd")
+            echo "::endgroup::"
+          done <<< "$COMMANDS"
+          if [ "${#failed[@]}" != 0 ]; then
+            printf '::error::failed: %s\n' "${failed[@]}"
+            exit 1
+          fi
+
+      - name: Report
+        if: always() && inputs.report != ''
+        env:
+          REPORT: ${{ inputs.report }}
+        run: bash -eo pipefail -c "$REPORT" | tee -a "$GITHUB_STEP_SUMMARY"

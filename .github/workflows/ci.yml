@@ -58,6 +58,26 @@ jobs:
     with:
       working-directory: tests/node
 
+  # Every optional tool, the environment, preparation, report, and a test and a build.
+  bun:
+    uses: ./.github/workflows/bun.yml
+    with:
+      working-directory: tests/bun
+      bun-version: "1.4.4"
+      just: true
+      python-version: "3.13"
+      opa-version: "1.10.0"
+      tofu-version: "1.12.2"
+      env: |
+        FIXTURE=bun
+      prepare: echo prepared > prepared.txt
+      commands: |
+        test "$FIXTURE" = bun && test -f prepared.txt
+        just check
+        bun run build && test -f dist/index.js
+        python --version && opa version && tofu version
+      report: echo "Bun fixture report"
+
   container:
     # container.yml asks for packages: write; with publish: false nothing is pushed.
     permissions:
@@ -223,7 +243,7 @@ jobs:
   # The one check the ruleset requires. Add every new job above to `needs`.
   ci-ok:
     if: always()
-    needs: [workflows, python, python-postgres, node, container, scripts, scripts-none, secrets, public-content, standard]
+    needs: [workflows, python, python-postgres, node, bun, container, scripts, scripts-none, secrets, public-content, standard]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
