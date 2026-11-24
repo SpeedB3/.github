@@ -130,15 +130,23 @@ owners. To change who can approve, change the team's members, or edit `CODEOWNER
 
 ### When CI runs
 
-CI runs on pull requests into `main` only: when one opens, gets a new push, is reopened, or is edited
-(a new title, description or base branch). It doesn't run on pushes, to `main` or to tags, or on pull
-requests into other branches. A merge needs the branch up to date and `ci-ok` green, so the pull request
-run already tested the tree that lands on `main`.
+CI runs in two cases, and never on a plain push (to `main`, another branch or a tag):
 
-A pull request into another branch (a stacked pull request) gets no CI. Once its base pull request has
-merged, it is retargeted to `main` (GitHub does it when the base branch is deleted, which these
-repositories do on merge; otherwise retarget it by hand). The retarget runs CI against `main`; then
-update the branch, which runs it again on the up-to-date tree.
+- **A pull request into `main`** (`ci.yml`): when it opens, gets a new push, is reopened, or is edited (a
+  new title, description or base branch). A merge needs the branch up to date and `ci-ok` green, so this
+  run already tested the tree that lands on `main`, and nothing runs again after the merge.
+- **A merge into any other branch** (`ci-merged.yml`, which calls `ci.yml`): when a pull request into
+  another branch (a stacked pull request into its parent, say) is merged, CI runs once on that branch's
+  new commit. It is skipped when that branch has an open pull request into `main`, because that pull
+  request runs CI on the new commit anyway. Its checks show as `ci / ...` and are not required anywhere.
+
+A pull request into another branch gets no CI while it is open. Once its base pull request has merged, it
+is retargeted to `main` (GitHub does it when the base branch is deleted, which these repositories do on
+merge; otherwise retarget it by hand). The retarget runs CI against `main`; then update the branch, which
+runs it again on the up-to-date tree.
+
+A repository adds both files: copy `ci-merged.yml` from this repository as it is (give its `ci` job
+`packages: write` if a job of `ci.yml` asks for it), and add `workflow_call:` to the `on:` of `ci.yml`.
 
 Each repository gets the same ruleset, [`rulesets/repo-default.json`](rulesets/repo-default.json). It
 requires the single check `ci-ok`, so it doesn't change when jobs are added or renamed. A repository admin
