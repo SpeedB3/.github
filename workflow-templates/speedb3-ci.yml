@@ -5,10 +5,12 @@
 name: CI
 
 on:
-  push:
-    branches: [$default-branch]
-    tags: ["v*"]
+  # Pull requests into the default branch only, not pushes: it must be up to date before a merge,
+  # so the pull request run tested exactly what lands (CI.md in SpeedB3/.github, "When CI runs").
   pull_request:
+    branches: [$default-branch]
+    # edited: a pull request retargeted to main runs again (its old result tested another base).
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
@@ -41,7 +43,8 @@ jobs:
   workflows:
     uses: SpeedB3/.github/.github/workflows/actionlint.yml@v1
 
-  # Builds the Dockerfile and publishes the image to GHCR on pushes to the default branch and v* tags.
+  # Lints and builds the Dockerfile (pull requests only build). Publishing to GHCR needs a release
+  # workflow on v* tags, because this CI runs on pull requests only (CI.md, container.yml).
   # image:
   #   needs: [python, secrets]
   #   permissions:

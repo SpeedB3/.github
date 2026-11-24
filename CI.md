@@ -7,8 +7,8 @@ its next run. What isn't built yet, and why, is in [future_step.md](future_step.
 
 This repository is public, and so are its commit messages, branch names, pull requests and comments. Keep
 client names, client repository names, engagement details and how a client repository is protected out of all
-of them (profile, "Ground rules"). The `public-content` job checks pull requests (again when the title or
-description is edited) and pushes to `main`: the files and file names, what every new commit adds, commit
+of them (profile, "Ground rules"). The `public-content` job checks pull requests into `main` (again when the title or
+description is edited): the files and file names, what every new commit adds, commit
 messages, and the title, description and branch name. It fails on any `client-<Name>` and on the names in
 the `PUBLIC_DENYLIST` secret, a case-insensitive extended regular expression kept as a secret so the list
 isn't published, and its log never shows a matched name. It can't see comments, and it runs only after a
@@ -25,7 +25,7 @@ gh secret set PUBLIC_DENYLIST --repo SpeedB3/.github --app dependabot
 |---|---|---|
 | [`python-uv.yml`](.github/workflows/python-uv.yml) | Python (uv projects) | `uv sync --locked`, pip-audit of the runtime dependencies (`audit: false` turns it off), ruff lint and format check, pyright, pytest. It can start PostgreSQL and create the test databases. ruff and pytest must be dev dependencies, and pyright too unless `pyright: false`. It can read dependencies from private repositories of this organisation ([below](#private-dependencies)). |
 | [`node.yml`](.github/workflows/node.yml) | TypeScript / JavaScript (npm) | `npm ci`, `npm audit` of runtime dependencies (high and above), then the package.json scripts you list. |
-| [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. With `publish: true` (the default), pushes to the default branch (`main`) and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it. |
+| [`container.yml`](.github/workflows/container.yml) | Dockerfile | hadolint, then the image build. With `publish: true` (the default), pushes to the default branch (`main`) and `v*` tags publish it to `ghcr.io/speedb3/<image>` with an SBOM and provenance. Pull requests only build it, so a `ci.yml` (pull requests only) never publishes: that takes a release workflow. |
 | [`scripts.yml`](.github/workflows/scripts.yml) | Loose Python, shell, PowerShell | One job per language: py_compile + ruff bug rules + listed self-tests, shellcheck (all severities), PSScriptAnalyzer (errors and parse errors). It checks every such file in the repository, so list a uv project's Python files in `exclude` (e.g. `backend/*.py`), because Ruff runs with `--isolated` and ignores the project's config. |
 | [`actionlint.yml`](.github/workflows/actionlint.yml) | GitHub Actions YAML | actionlint, with shellcheck on `run:` blocks, and a check that `ci-ok` needs every job and runs with `if: always()`. |
 | [`secrets.yml`](.github/workflows/secrets.yml) | Any | gitleaks over the history of the checked-out commit (other branches are not scanned). A root `.gitleaks.toml` allowlists fake keys in fixtures. |
@@ -52,7 +52,7 @@ run over this repository itself):
 | `public-content` | this repository | no client named in its files, file names, commit messages, or a pull request's title, description or branch name (above) |
 | `ci-ok` | none | fails when any job above failed, was cancelled or was skipped, when the `scripts` job reported a missing or zero file count, when `scripts-none` checked any file, or when the `workflows` job reported no ci-ok workflow |
 
-Move `v1` only when this CI is green on `main`.
+Move `v1` only to a commit on `main`: it passed this CI as an up-to-date pull request.
 
 ## Add CI to a repository
 
@@ -61,7 +61,7 @@ From the repository on GitHub, go to **Actions → New workflow** and pick **Spe
 
 | Repository | Jobs |
 |---|---|
-| internal-GenAIFinOps | backend (Python + PostgreSQL 18 + OpenAPI drift check), frontend, workflows, secrets, image (`genaifinops-backend`, published on `v*` tags only) |
+| internal-GenAIFinOps | backend (Python + PostgreSQL 18 + OpenAPI drift check), frontend, workflows, secrets, image (`genaifinops-backend`, built, not published yet) |
 | internal-MigrationFinOps | python (PostgreSQL 18, `-n auto`, schema and ledger checks), workbench, workflows, secrets |
 | internal-teamWorkflowAutomation | python, scripts (`scripts/*.ps1`), workflows, secrets (the poll workflows stay repo-specific) |
 | team-vault-skills | scripts (Python, shell, PowerShell; evals and templates skipped), workflows, secrets |
@@ -116,10 +116,29 @@ merges only when:
   keeps at least two members. A new push after the approval needs a new approval.
 - every review thread is resolved;
 - `ci-ok` passes, which means every job in its `needs` list succeeded. Only GitHub Actions can report it.
+- the branch is up to date with `main`. If `main` moved since the last run, click **Update branch** (or
+  rebase): the push runs CI again, and the approval must be given again. Let the **author** update the
+  branch: whoever pushes last can't approve, so a reviewer who clicks it needs a second reviewer. For a
+  Dependabot pull request, comment `@dependabot rebase` instead, so Dependabot stays the last pusher.
+- it merges with **Squash and merge**, the only method allowed: every commit on `main` is then a tree CI
+  tested. A merge commit or a rebase would also bring the pull request's own commits, which CI never
+  tested on their own.
 
 Force pushes to `main` and deleting it are blocked. There is no bypass, including for organisation
 owners. To change who can approve, change the team's members, or edit `CODEOWNERS` in a pull request
 (which itself needs an approval).
+
+### When CI runs
+
+CI runs on pull requests into `main` only: when one opens, gets a new push, is reopened, or is edited
+(a new title, description or base branch). It doesn't run on pushes, to `main` or to tags, or on pull
+requests into other branches. A merge needs the branch up to date and `ci-ok` green, so the pull request
+run already tested the tree that lands on `main`.
+
+A pull request into another branch (a stacked pull request) gets no CI. Once its base pull request has
+merged, it is retargeted to `main` (GitHub does it when the base branch is deleted, which these
+repositories do on merge; otherwise retarget it by hand). The retarget runs CI against `main`; then
+update the branch, which runs it again on the up-to-date tree.
 
 Each repository gets the same ruleset, [`rulesets/repo-default.json`](rulesets/repo-default.json). It
 requires the single check `ci-ok`, so it doesn't change when jobs are added or renamed. A repository admin
@@ -137,14 +156,24 @@ repository, including ones created later. Its `repository_name.protected` is `fa
 still be renamed (with `true`, no repository in the organisation could be renamed). On each default
 branch it requires a pull request with one approval, a new approval after a new push, and every review
 thread resolved. In a repository with `CODEOWNERS`, that approval must come from a code owner. It also
-blocks force pushes and deletion. It has no status check, because a repository without CI could never
-satisfy it. The repository ruleset repeats these rules, so a repository stays protected where the
-organisation ruleset is not applied, and adds `ci-ok`. GitHub applies both, so the stricter value wins: a
-review rule is relaxed only when both files change. Only an organisation owner can apply it, with a token
-that has the `admin:org` scope (`gh auth refresh -s admin:org`):
+blocks force pushes and deletion.
+
+[`rulesets/org-ci.json`](rulesets/org-ci.json) adds the rest of the repository ruleset for every
+repository: `ci-ok` on an up-to-date branch, and squash-only merges. A new repository therefore can't
+merge anything until it has CI; the pull request that adds `ci.yml` passes on its own run.
+[`rulesets/org-release-tags.json`](rulesets/org-release-tags.json) lets only repository admins create, move
+or delete a release tag (`v*`, `*-v*`), because a tag can point at any commit, reviewed or not.
+A repository whose owners run their own CI can be left out in the live rulesets (`repository_name.exclude`); that list is not published here.
+
+The repository ruleset repeats these rules, so a repository stays protected where the organisation
+rulesets are not applied. GitHub applies all of them, so the stricter value wins: a rule is relaxed only
+when every file that has it changes. Only an organisation owner can apply them, with a token that has the
+`admin:org` scope (`gh auth refresh -s admin:org`):
 
 ```
 gh api -X POST orgs/SpeedB3/rulesets --input rulesets/org-default.json
+gh api -X POST orgs/SpeedB3/rulesets --input rulesets/org-ci.json
+gh api -X POST orgs/SpeedB3/rulesets --input rulesets/org-release-tags.json
 ```
 
 GitHub Actions can't approve pull requests in any repository ("Allow GitHub Actions to create and approve
