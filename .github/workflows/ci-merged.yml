@@ -36,10 +36,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.base_ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           # --head matches the branch name only, so a fork's branch of the same name is left out.
-          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --state open --json isCrossRepository --jq '[.[] | select(.isCrossRepository | not)] | length')
-          echo "Open pull requests from $BRANCH into main: $open"
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --base "$DEFAULT_BRANCH" --head "$BRANCH" --state open --json isCrossRepository --jq '[.[] | select(.isCrossRepository | not)] | length')
+          echo "Open pull requests from $BRANCH into $DEFAULT_BRANCH: $open"
           if [ "$open" = 0 ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
 
   ci:
