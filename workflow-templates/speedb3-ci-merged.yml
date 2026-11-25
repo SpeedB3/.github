@@ -1,0 +1,54 @@
+# CI after a pull request merges into a branch other than main (for example a stacked pull request into
+# its parent): runs ci.yml on the branch's new state. Pull requests into main run ci.yml directly
+# (CI.md in SpeedB3/.github, "When CI runs").
+
+name: CI after merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches-ignore: [$default-branch]
+
+permissions:
+  contents: read
+
+concurrency:
+  # A newer merge into the same branch replaces the run of an older one. "merged" keeps this name apart
+  # from the group of the ci.yml it calls: the same name in caller and callee would deadlock.
+  group: ${{ github.workflow }}-merged-${{ github.base_ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Runs only for a merge, and not when the branch has an open pull request into main: that pull
+  # request runs CI on the new commit anyway (merged with main).
+  check:
+    if: github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.open.outputs.run }}
+    steps:
+      - name: Open pull request into $default-branch
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.base_ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          # --head matches the branch name only, so a fork's branch of the same name is left out.
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --base "$DEFAULT_BRANCH" --head "$BRANCH" --state open --json isCrossRepository --jq '[.[] | select(.isCrossRepository | not)] | length')
+          echo "Open pull requests from $BRANCH into $DEFAULT_BRANCH: $open"
+          if [ "$open" = 0 ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+
+  ci:
+    needs: check
+    if: needs.check.outputs.run == 'true'
+    # With an `image` job in ci.yml, add here (container.yml asks for it; it publishes nothing here):
+    # permissions:
+    #   contents: read
+    #   packages: write
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit

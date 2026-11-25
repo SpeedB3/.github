@@ -1,6 +1,7 @@
 # Reusable check of the calling repository's workflow files with actionlint (and shellcheck),
 # including the starter workflows in workflow-templates/ when that folder exists. It also checks
-# that a `ci-ok` job needs every other job of its workflow and runs with `if: always()`.
+# that a `ci-ok` job needs every other job of its workflow and runs with `if: always()`, and that the
+# repository follows the SpeedB3 standard (CI.md, "One standard").
 #
 #   jobs:
 #     workflows:
@@ -32,10 +33,11 @@ jobs:
           persist-credentials: false
 
       # actionlint is pinned (download-script commit and version argument in this step's run: block); the
-      # shellcheck it runs on run: blocks and the yq of the next step come from the runner image.
+      # shellcheck it runs on run: blocks comes from the runner image, or from apt where the image has none
+      # (ubuntu-26.04, since Nov 2026); the yq of the next step comes from the runner image.
       - name: actionlint
         run: |
-          command -v shellcheck >/dev/null || { echo '::error::shellcheck not found on the runner'; exit 1; }
+          command -v shellcheck >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck; }
           curl -sSfL -o "$RUNNER_TEMP/download-actionlint.bash" https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash
           bash "$RUNNER_TEMP/download-actionlint.bash" 1.7.12
           shopt -s nullglob
@@ -72,3 +74,14 @@ jobs:
           done
           echo "ci-ok-workflows=$checked" >> "$GITHUB_OUTPUT"
           exit "$status"
+
+      # The SpeedB3 standard (CI.md, "One standard"; the checks are listed in .github/ci-standard.sh).
+      # The script and the starter workflows come from v1, the tag callers use. SpeedB3/.github is left
+      # out: its CI tests the shared workflows themselves, and the script (its standard job).
+      - name: SpeedB3 standard
+        if: github.repository != 'SpeedB3/.github'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git clone -q --depth 1 --branch v1 https://github.com/SpeedB3/.github.git "$RUNNER_TEMP/standard"
+          bash "$RUNNER_TEMP/standard/.github/ci-standard.sh" "$RUNNER_TEMP/standard/workflow-templates" "$DEFAULT_BRANCH"

@@ -1,0 +1,6 @@
+{
+  "name": "SpeedB3 CI after merge",
+  "description": "Runs the repository's SpeedB3 CI once after a pull request merges into a branch other than the default branch (add it with SpeedB3 CI, whose ci.yml it calls).",
+  "iconName": "octicon check-circle",
+  "categories": ["Python", "TypeScript", "JavaScript", "Shell", "PowerShell", "Dockerfile"]
+}
