@@ -1,3 +1,4 @@
-# Every pull request into main needs an approval from the SpeedB3 developers team.
-# Members are managed in the team (Organisation > Teams > devs), not in this file.
-* @SpeedB3/devs
+# Every pull request into main needs an approval from the shared-repositories team, devs-core
+# (a child team of devs). Members are managed in the team (Organisation > Teams > devs > devs-core),
+# not in this file. The team auto-assigns one reviewer per pull request (load balance).
+* @SpeedB3/devs-core
