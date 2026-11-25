@@ -175,6 +175,8 @@ no CI, so there is no `ci-ok` yet and it cannot merge: update the branch, which 
 tree. The base was squash-merged, so its old commits are still on the branch; instead of merging `main` in,
 drop them with `git rebase --onto main <old base tip>` and force-push (the approval is then needed again).
 
+No `ci-ok` after a retarget? Update the branch, or close and reopen the pull request.
+
 A repository adds both files, from the "SpeedB3 CI" and "SpeedB3 CI after merge" starter workflows or by
 copying `ci-merged.yml` from this repository as it is (give its `ci` job `packages: write` if a job of
 `ci.yml` asks for it); `ci.yml` needs `workflow_call:` in its `on:`.
