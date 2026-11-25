@@ -4,8 +4,8 @@
 # read as the repository's default branch, $2 (main when left out):
 #   - ci.yml has the starter's name, triggers, permissions, concurrency, standard jobs (workflows,
 #     secrets) and ci-ok gate (its `needs` aside), nothing else at the top level, and every other
-#     job calls a shared workflow at @v1 with only uses, with and needs (an image job also
-#     packages: write);
+#     job calls a shared workflow at @v1 with only uses, with, needs and named secrets (an image
+#     job also packages: write);
 #   - ci-merged.yml is the starter's (its ci job may add packages: write, for an image job);
 #   - no workflow runs on push or pull_request_target, and no other workflow runs on pull requests
 #     or has a ci-ok job.
@@ -39,16 +39,17 @@ done
 own=$(yq '.jobs | to_entries | .[] | select(.key != "ci-ok")
   | select((.value.uses // "") | test("^SpeedB3/\.github/\.github/workflows/(python-uv|node|bun|scripts|actionlint|secrets|container)\.yml@v1$") | not) | .key' "$ci")
 [ -z "$own" ] || fail "$ci" "every job but ci-ok calls a shared workflow at @v1, not: $(echo "$own" | tr '\n' ' ')"
-# A job calling a shared workflow sets only its inputs and order; an image job (container.yml) also
-# needs packages: write.
+# A job calling a shared workflow sets only its inputs, named secrets (not inherit) and order; an image
+# job (container.yml) also needs packages: write.
 extra=$(yq '.jobs | to_entries | .[] | select(.key != "ci-ok")
   | select(
-      ([.value | keys | .[] | select(. != "uses" and . != "with" and . != "needs" and . != "permissions")] | length) > 0
+      ([.value | keys | .[] | select(. != "uses" and . != "with" and . != "needs" and . != "secrets" and . != "permissions")] | length) > 0
+      or ((.value | has("secrets")) and (.value.secrets | tag) != "!!map")
       or ((.value | has("permissions")) and (
         (.value.permissions | keys | sort | join(",")) != "contents,packages"
         or .value.permissions.contents != "read" or .value.permissions.packages != "write")))
   | .key' "$ci")
-[ -z "$extra" ] || fail "$ci" "a job calling a shared workflow takes only uses, with and needs (and an image job packages: write), not: $(echo "$extra" | tr '\n' ' ')"
+[ -z "$extra" ] || fail "$ci" "a job calling a shared workflow takes only uses, with, needs and named secrets (and an image job packages: write), not: $(echo "$extra" | tr '\n' ' ')"
 
 q='del(.jobs.ci.permissions)'
 [ "$(part "$merged" "$q")" = "$(part "$std/ci-merged.yml" "$q")" ] \
