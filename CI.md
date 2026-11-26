@@ -157,7 +157,7 @@ owners. To change who can approve, change the team's members, or edit `CODEOWNER
 
 ### When CI runs
 
-CI runs in two cases, and never on a plain push (to `main`, another branch or a tag):
+CI runs in two cases (three once the merge queue is on, see "Merge queue"), and never on a plain push (to `main`, another branch or a tag):
 
 - **A pull request into `main`** (`ci.yml`): when it opens, gets a new push, or is reopened. A merge needs
   the branch up to date and `ci-ok` green, so this run already tested the tree that lands on `main`, and
@@ -176,6 +176,17 @@ tree. The base was squash-merged, so its old commits are still on the branch; in
 drop them with `git rebase --onto main <old base tip>` and force-push (the approval is then needed again).
 
 No `ci-ok` after a retarget? Update the branch, or close and reopen the pull request.
+
+### Merge queue
+
+Being rolled out. `ci.yml` also runs on `merge_group` (the starter has it): once a repository's ruleset
+turns the merge queue on, an approved pull request with a green `ci-ok` is added with **Merge when
+ready**. GitHub then tests it once more on top of `main` and the pull requests ahead of it in the queue,
+and squash-merges it when that `ci-ok` is green; on red it leaves the queue and the pull request says why.
+Nobody updates the branch by hand, so an approval stays valid, and `main` still only gets tested trees.
+
+Until every repository's `ci.yml` has the `merge_group` trigger, the standard check passes one without it.
+The queue is turned on, and "up to date before merging" turned off, only after that.
 
 A repository adds both files, from the "SpeedB3 CI" and "SpeedB3 CI after merge" starter workflows or by
 copying `ci-merged.yml` from this repository as it is (give its `ci` job `packages: write` if a job of

@@ -13,6 +13,9 @@ on:
     # edited: a changed title or description is checked again (public-content), and a pull request
     # retargeted to main runs again (its old result tested another base).
     types: [opened, synchronize, reopened, edited]
+  # The merge queue (CI.md, "Merge queue").
+  merge_group:
+    types: [checks_requested]
   workflow_call:
 
 permissions:
@@ -146,6 +149,11 @@ jobs:
             # After a squash merge (ci-merged.yml) the head commits may be on no branch any more, since
             # the merged branch can be deleted; the pull request ref keeps them.
             git fetch -q --no-tags origin "+refs/pull/$(jq .number "$GITHUB_EVENT_PATH")/head"
+          elif [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            # The commits this queue entry adds on top of its base (main, or the entry ahead of it): their
+            # messages are what lands. Title, description and branch name were checked on the pull request.
+            base=$(jq -r .merge_group.base_sha "$GITHUB_EVENT_PATH")
+            head=$(jq -r .merge_group.head_sha "$GITHUB_EVENT_PATH")
           else
             base=$(jq -r .before "$GITHUB_EVENT_PATH")
             head=$(jq -r .after "$GITHUB_EVENT_PATH")
@@ -205,6 +213,10 @@ jobs:
           check "$(case_repo "" '.jobs.ci.permissions = {"contents": "read", "packages": "write"}')"
           # A shared job may pass named secrets (a private dependency's app key, say).
           check "$(case_repo '.jobs.scripts.secrets = {"app-private-key": "x"}' "")"
+          # Until every repository has it, a ci.yml without the merge_group trigger passes (transition).
+          dir=$(case_repo 'del(.on.merge_group)' "")
+          [ "$(yq '.on | has("merge_group")' "$dir/.github/workflows/ci.yml")" = false ]
+          check "$dir"
           while IFS=';' read -r name ci merged; do
             if check "$(case_repo "$ci" "$merged")" > /dev/null 2>&1; then
               echo "::error::the standard check passed a broken copy: $name"
@@ -213,6 +225,8 @@ jobs:
           done << 'EOF'
           push trigger;.on.push = {};
           other pull request types;.on.pull_request.types = ["opened"];
+          other merge queue types;.on.merge_group.types = ["destroyed"];
+          merge queue without pull requests;del(.on.pull_request);
           no secrets job;del(.jobs.secrets) | .jobs."ci-ok".needs -= ["secrets"];
           own job;.jobs.own = {"runs-on": "ubuntu-latest", "steps": [{"run": "true"}]} | .jobs."ci-ok".needs += ["own"];
           shared workflow off v1;.jobs.scripts.uses = "SpeedB3/.github/.github/workflows/scripts.yml@main";
