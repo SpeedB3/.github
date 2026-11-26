@@ -91,8 +91,8 @@ starters say `main` or `$default-branch`.)
 
 - `ci.yml` has the starter's name, triggers, permissions and concurrency, the `workflows` and `secrets`
   jobs and the `ci-ok` gate, word for word (only the `needs` of `ci-ok` differ), and nothing else at the
-  top level. Every other job calls a shared workflow of this repository at `@v1` and sets only `with`
-  and `needs` (an `image` job also `packages: write`). What an input runs, `extra-commands` say, is
+  top level. Every other job calls a shared workflow of this repository at `@v1` and sets only `with`,
+  `needs` and named `secrets` (not `secrets: inherit`; an `image` job also `packages: write`). What an input runs, `extra-commands` say, is
   left to the reviewer.
 - `ci-merged.yml` is the starter's, word for word. Its `ci` job may add `packages: write`, for an `image` job.
 - No workflow runs on `push` or `pull_request_target`, and no other workflow runs on pull requests or

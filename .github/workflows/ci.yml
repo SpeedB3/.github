@@ -203,6 +203,8 @@ jobs:
             status=1
           fi
           check "$(case_repo "" '.jobs.ci.permissions = {"contents": "read", "packages": "write"}')"
+          # A shared job may pass named secrets (a private dependency's app key, say).
+          check "$(case_repo '.jobs.scripts.secrets = {"app-private-key": "x"}' "")"
           while IFS=';' read -r name ci merged; do
             if check "$(case_repo "$ci" "$merged")" > /dev/null 2>&1; then
               echo "::error::the standard check passed a broken copy: $name"
@@ -222,6 +224,7 @@ jobs:
           own workflow at v1;.jobs.scripts.uses = "SpeedB3/.github/.github/workflows/ci.yml@v1";
           condition on a shared job;.jobs.scripts.if = "false";
           wider job permissions;.jobs.scripts.permissions = {"contents": "write"};
+          all secrets to a shared job;.jobs.scripts.secrets = "inherit";
           EOF
           # A third workflow: on push, on pull requests, with a job named ci-ok. Then a missing ci-merged.yml.
           for other in 'on: push' 'on: pull_request' \
