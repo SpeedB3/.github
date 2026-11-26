@@ -12,6 +12,10 @@ on:
     # Not edited: a title or description change does not rerun CI. A pull request retargeted to main
     # has no ci-ok until its next push (update the branch), so it cannot merge untested.
     types: [opened, synchronize, reopened]
+  # The merge queue: an approved pull request is tested once more on top of the default branch and
+  # the pull requests ahead of it, then merged (CI.md in SpeedB3/.github, "Merge queue").
+  merge_group:
+    types: [checks_requested]
   # The "SpeedB3 CI after merge" starter workflow calls it after a merge into another branch.
   workflow_call:
 

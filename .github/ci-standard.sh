@@ -31,9 +31,14 @@ merged=.github/workflows/ci-merged.yml
 [ -f "$ci" ] || { echo "::error::$ci is missing (CI.md, \"One standard\")"; exit 1; }
 [ -f "$merged" ] || { echo "::error::$merged is missing (CI.md, \"One standard\")"; exit 1; }
 
-for q in .name .on .permissions .concurrency .jobs.workflows .jobs.secrets '.jobs."ci-ok" | del(.needs)'; do
+for q in .name .permissions .concurrency .jobs.workflows .jobs.secrets '.jobs."ci-ok" | del(.needs)'; do
   [ "$(part "$ci" "$q")" = "$(part "$std/ci.yml" "$q")" ] || fail "$ci" "$q differs from the SpeedB3 CI starter workflow"
 done
+# Transition to the merge queue (CI.md, "Merge queue"): until every repository's ci.yml has the starter's
+# merge_group trigger, the triggers without it pass too. Drop the second comparison once all have it.
+on=$(part "$ci" .on)
+[ "$on" = "$(part "$std/ci.yml" .on)" ] || [ "$on" = "$(part "$std/ci.yml" '.on | del(.merge_group)')" ] \
+  || fail "$ci" ".on differs from the SpeedB3 CI starter workflow"
 [ "$(yq 'keys | sort | join(" ")' "$ci")" = "concurrency jobs name on permissions" ] \
   || fail "$ci" "only name, on, permissions, concurrency and jobs at the top level"
 own=$(yq '.jobs | to_entries | .[] | select(.key != "ci-ok")
